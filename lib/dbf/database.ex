@@ -5,6 +5,7 @@ defmodule DBF.Database do
     :last_updated,
     :number_of_records,
     :header_bytes,
+    :record_bytes,
     :fields
   ]
   @type t :: %DBF.Database{
@@ -13,6 +14,7 @@ defmodule DBF.Database do
     last_updated: {integer, integer, integer},
     number_of_records: integer,
     header_bytes: integer,
+    record_bytes: integer,
     fields: [{binary, binary}]
   }
 
