@@ -11,7 +11,7 @@ defmodule DBF.Record do
     value = transpose_field(field.type, text)
     parse_record(more_fields, rest, Map.put(acc, field.name, value))
   end
-  defp parse_record(_fields, _data, acc) do
+  defp parse_record(_fields, _data, _acc) do
     throw "Invalid Record"
   end
 
@@ -30,7 +30,7 @@ defmodule DBF.Record do
   defp transpose_field("D", _) do
     throw "Invalid Date"
   end
-  defp transpose_field(type, value) do
+  defp transpose_field(type, _value) do
     throw "Unhandled Field Type: #{inspect(type)}"
   end
 
