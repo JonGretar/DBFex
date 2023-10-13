@@ -24,6 +24,13 @@ defmodule DBF.Record do
   defp transpose_field("I", value) do
     value |> String.trim() |> String.to_integer()
   end
+  defp transpose_field("N", value) do
+    # TODO: Should we be always returning a float? Or should we be returning an integer if there is no decimal?
+    case value |> String.trim() |> Float.parse() do
+      {number, _} -> number
+      :error -> nil
+    end
+  end
   defp transpose_field("D", <<year::binary-size(4), month::binary-size(2), day::binary-size(2)>>) do
     Date.from_iso8601!("#{year}-#{month}-#{day}")
   end
