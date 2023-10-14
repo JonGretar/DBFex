@@ -34,7 +34,7 @@ defmodule DBF do
     {:ok, %DB{
       device: file,
       version: version,
-      last_updated: {year + 1900, month, day},
+      last_updated: Date.from_erl!({year + 1900, month, day}),
       number_of_records: records,
       header_bytes: header_length,
       record_bytes: record_length,
