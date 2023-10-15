@@ -2,6 +2,7 @@ defmodule DBF do
   alias DBF.Database, as: DB
   alias DBF.Fields, as: F
   alias DBF.Record, as: R
+  alias DBF.Memo, as: M
 
   @moduledoc """
   Documentation for `DBF`.
@@ -33,6 +34,7 @@ defmodule DBF do
 
     {:ok, %DB{
       device: file,
+      memo_file: M.sense_memo_file(filename),
       version: version,
       last_updated: Date.from_erl!({year + 1900, month, day}),
       number_of_records: records,
@@ -51,6 +53,14 @@ defmodule DBF do
     File.close(dev)
   end
 
+  defp sense_memo_file(filename) do
+    memo_filename = filename |> Path.basename() |> Path.join(".dbt")
+    if File.exists?(memo_filename) do
+    else
+      nil
+    end
+  end
+
   def read_records(db) do
     data1 = get(db, 0)
     data2 = get(db, 1)
@@ -61,9 +71,8 @@ defmodule DBF do
 
   def get(%DBF.Database{device: dev,
                         record_bytes: record_bytes,
-                        header_bytes: header_bytes,
-                        fields: fields
-                        }, record_number) do
+                        header_bytes: header_bytes
+                        } = db, record_number) do
     offset = header_bytes + record_number * record_bytes
     {:ok, <<raw_type::binary-size(1), data::binary>>} = :file.pread(dev, offset, record_bytes)
     type = case raw_type do
@@ -71,7 +80,7 @@ defmodule DBF do
       "*" -> :deleted_record
       _ -> :unknown
     end
-    {type, R.parse_record(fields, data)}
+    {type, R.parse_record(db, data)}
   end
 
 

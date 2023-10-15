@@ -1,6 +1,7 @@
 defmodule DBF.Database do
   defstruct [
     :device,
+    :memo_file,
     :version,
     :last_updated,
     :number_of_records,
@@ -11,6 +12,7 @@ defmodule DBF.Database do
   ]
   @type t :: %DBF.Database{
     device: File.stream,
+    memo_file: DBF.Memo.t,
     version: integer,
     last_updated: {integer, integer, integer},
     number_of_records: integer,
