@@ -13,7 +13,7 @@ defmodule DBF.Memo do
 
     memo_filename = (filename |> Path.rootname() ) <> ".dbt"
     if File.exists?(memo_filename) do
-      IO.puts("Found memo file: #{memo_filename}")
+      # IO.puts("Found memo file: #{memo_filename}")
       {:ok, file} = File.open(memo_filename, [:read, :binary])
       {:ok, data} = :file.pread(file, 0, 512)
       <<_next_block::little-unsigned-integer-32, _block_size::little-unsigned-16,_rest::binary>> = data

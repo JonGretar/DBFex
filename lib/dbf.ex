@@ -53,14 +53,6 @@ defmodule DBF do
     File.close(dev)
   end
 
-  defp sense_memo_file(filename) do
-    memo_filename = filename |> Path.basename() |> Path.join(".dbt")
-    if File.exists?(memo_filename) do
-    else
-      nil
-    end
-  end
-
   def read_records(db) do
     data1 = get(db, 0)
     data2 = get(db, 1)
