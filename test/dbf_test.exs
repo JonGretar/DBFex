@@ -38,7 +38,7 @@ defmodule DBFTest do
     end
 
     test "it reads the version", context do
-      assert context.db.version == 3
+      assert context.db.version == 0x03
     end
 
     test "it reads the last updated date", context do
@@ -67,7 +67,7 @@ defmodule DBFTest do
     end
 
     test "reads the version", context do
-      assert context.db.version == 139
+      assert context.db.version == 0x8b
     end
 
     test "reads the last updated date", context do
@@ -88,23 +88,23 @@ defmodule DBFTest do
 
   end
 
-  describe "When reading version (30) Visual FoxPro" do
+  describe "When reading version (83) dBase III with memo file" do
     setup do
-      db = DBF.open!("test/dbf_files/dbase_30.dbf")
+      db = DBF.open!("test/dbf_files/dbase_83.dbf")
       on_exit(fn -> DBF.close!(db) end)
       {:ok, db: db}
     end
 
     test "it reads the version", context do
-      assert context.db.version == 48
+      assert context.db.version == 0x83
     end
 
     test "it reads the last updated date", context do
-      assert context.db.last_updated == ~D[1906-09-09]
+      assert context.db.last_updated == ~D[2003-12-18]
     end
 
     test "it reads the number of records", context do
-      assert context.db.number_of_records == 34
+      assert context.db.number_of_records == 67
     end
 
     test "it gets the first record", context do
