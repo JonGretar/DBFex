@@ -34,7 +34,8 @@ defmodule DBF do
 
     {:ok, %DB{
       device: file,
-      memo_file: M.sense_memo_file(filename),
+      filename: filename,
+      memo_file: M.find_memo_file(filename),
       version: version,
       last_updated: Date.from_erl!({year + 1900, month, day}),
       number_of_records: records,

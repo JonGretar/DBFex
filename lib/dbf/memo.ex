@@ -8,7 +8,7 @@ defmodule DBF.Memo do
     block_size: integer
   }
 
-  def sense_memo_file(filename) do
+  def find_memo_file(filename) do
     # change the extension to .dbt
 
     memo_filename = (filename |> Path.rootname() ) <> ".dbt"
