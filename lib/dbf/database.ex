@@ -24,6 +24,35 @@ defmodule DBF.Database do
     position: integer
   }
 
+
+  def read_header(%__MODULE__{device: device}=db) do
+    {:ok, data} = :file.pread(device, 0, 32)
+
+    <<
+      _version::unsigned-integer-8,
+      year::unsigned-integer-8,
+      month::unsigned-integer-8,
+      day::unsigned-integer-8,
+      records::little-unsigned-integer-32,
+      header_length::little-unsigned-integer-16,
+      record_length::little-unsigned-integer-16,
+      _reserved1::binary-size(2),
+      _transaction::binary-size(1),
+      _reserved2::binary-size(12),
+      _table_flags::binary-size(1),
+      _code_page_mark::binary-size(1),
+      _reserved3::binary-size(2),
+      _header_terminator::binary-size(1)
+    >> = data
+
+    {:ok, %__MODULE__{ db |
+      last_updated: Date.from_erl!({year + 1900, month, day}),
+      number_of_records: records,
+      header_bytes: header_length,
+      record_bytes: record_length
+    } }
+  end
+
 end
 
 # Define the Enumerable implentation for the database.

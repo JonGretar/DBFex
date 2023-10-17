@@ -9,52 +9,40 @@ defmodule DBF do
   """
 
 
+  @spec open(binary()) :: {:ok, DBF.Database.t()}
   def open(filename) when is_binary(filename) do
     {:ok, file} = File.open(filename, [:read, :binary])
-    {:ok, data} = :file.pread(file, 0, 32)
 
-    <<
-      version::unsigned-integer-8,
-      year::unsigned-integer-8,
-      month::unsigned-integer-8,
-      day::unsigned-integer-8,
-      records::little-unsigned-integer-32,
-      header_length::little-unsigned-integer-16,
-      record_length::little-unsigned-integer-16,
-      _reserved1::binary-size(2),
-      _transaction::binary-size(1),
-      _reserved2::binary-size(12),
-      _table_flags::binary-size(1),
-      _code_page_mark::binary-size(1),
-      _reserved3::binary-size(2),
-      _header_terminator::binary-size(1)
-    >> = data
+    {:ok, <<version::unsigned-integer-8>>} = :file.pread(file, 0, 1)
 
-    {:ok, raw_fields} = :file.pread(file, 32, header_length-32)
-
-    {:ok, %DB{
+    {:ok, db} = DB.read_header(%DB{
       device: file,
       filename: filename,
-      memo_file: M.find_memo_file(filename),
-      version: version,
-      last_updated: Date.from_erl!({year + 1900, month, day}),
-      number_of_records: records,
-      header_bytes: header_length,
-      record_bytes: record_length,
+      version: version
+    })
+
+    {:ok, raw_fields} = :file.pread(file, 32, db.header_bytes-32)
+
+    {:ok, %DB{ db |
+      memo_file: M.find_memo_file(db.filename),
       fields: F.parse_fields(raw_fields)
     }}
   end
 
+  @spec open!(binary()) :: DBF.Database.t()
   def open!(filename) when is_binary(filename) do
     {:ok, db} = open(filename)
     db
   end
 
+  @spec close!(DBF.Database.t()) :: :ok | {:error, atom()}
   def close!(%DBF.Database{device: dev}) do
     File.close(dev)
   end
 
 
+  @spec get(DBF.Database.t(), integer()) ::
+          {:deleted_record, list()} | {:record, list()} | {:unknown, list()}
   def get(%DBF.Database{device: dev,
                         record_bytes: record_bytes,
                         header_bytes: header_bytes
