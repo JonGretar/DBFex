@@ -53,13 +53,6 @@ defmodule DBF do
     File.close(dev)
   end
 
-  def read_records(db) do
-    data1 = get(db, 0)
-    data2 = get(db, 1)
-    IO.puts("Ze Data")
-    IO.puts("data1: #{inspect(data1)}")
-    IO.puts("data2: #{inspect(data2)}")
-  end
 
   def get(%DBF.Database{device: dev,
                         record_bytes: record_bytes,
