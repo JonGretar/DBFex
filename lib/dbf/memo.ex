@@ -23,7 +23,7 @@ defmodule DBF.Memo do
         block_size: 512
       }
     else
-      nil
+      false
     end
   end
 
