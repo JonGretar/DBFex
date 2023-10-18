@@ -16,11 +16,10 @@ defmodule DBF.Memo do
       # IO.puts("Found memo file: #{memo_filename}")
       {:ok, file} = File.open(memo_filename, [:read, :binary])
       {:ok, data} = :file.pread(file, 0, 512)
-      <<_next_block::little-unsigned-integer-32, _block_size::little-unsigned-16,_rest::binary>> = data
-      ## TODO: Fix the block size to be the correct size.
+      <<_next_block::little-unsigned-integer-32, block_size::little-unsigned-16,_rest::binary>> = data
       %__MODULE__{
         device: file,
-        block_size: 512
+        block_size: block_size
       }
     else
       false
