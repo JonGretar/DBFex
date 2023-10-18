@@ -24,7 +24,29 @@ defmodule DBF.Database do
     position: integer
   }
 
+  @versions %{
+    0x02 => "FoxBase",
+    0x03 => "dBase III without memo file",
+    0x04 => "dBase IV without memo file",
+    0x05 => "dBase V without memo file",
+    0x07 => "Visual Objects 1.x",
+    0x30 => "Visual FoxPro",
+    0x31 => "Visual FoxPro with AutoIncrement field",
+    0x32 => "Visual FoxPro with field type Varchar or Varbinary",
+    0x43 => "dBASE IV SQL table files, no memo",
+    0x63 => "dBASE IV SQL system files, no memo",
+    0x7b => "dBase IV with memo file",
+    0x83 => "dBase III with memo file",
+    0x87 => "Visual Objects 1.x with memo file",
+    0x8b => "dBase IV with memo file",
+    0x8e => "dBase IV with SQL table",
+    0xcb => "dBASE IV SQL table files, with memo",
+    0xf5 => "FoxPro with memo file",
+    0xe5 => "HiPer-Six format with SMT memo file",
+    0xfb => "FoxPro without memo file"
+  }
 
+  @spec read_header(DBF.Database.t()) :: {:ok, DBF.Database.t()}
   def read_header(%__MODULE__{device: device}=db) do
     {:ok, data} = :file.pread(device, 0, 32)
 
@@ -51,6 +73,17 @@ defmodule DBF.Database do
       header_bytes: header_length,
       record_bytes: record_length
     } }
+  end
+
+
+  @spec foxpro?(DBF.Database.t()) :: boolean()
+  def foxpro?(%__MODULE__{version: version}) do
+    version in [0x30, 0x31, 0x32, 0xf5, 0xfb]
+  end
+
+  @spec well_known_version?(DBF.Database.t()) :: boolean()
+  def well_known_version?(%__MODULE__{version: version}) do
+    Map.has_key?(@versions, version)
   end
 
 end
