@@ -46,7 +46,25 @@ defmodule DBF.Database do
     0xfb => "FoxPro without memo file"
   }
 
-  @spec read_header(DBF.Database.t()) :: {:ok, DBF.Database.t()}
+
+  def read_header(%__MODULE__{version: 0x02, device: device}=db) do
+    {:ok, data} = :file.pread(device, 0, 8)
+
+    <<
+      _version::unsigned-integer-8,
+      records::little-unsigned-integer-16,
+      _unknown::binary-size(3),
+      record_length::little-unsigned-integer-16,
+    >> = data
+
+    {:ok, %__MODULE__{ db |
+      last_updated: Date.from_erl!({1900, 01, 01}),
+      number_of_records: records,
+      header_bytes: 521,
+      record_bytes: record_length
+    } }
+  end
+
   def read_header(%__MODULE__{device: device}=db) do
     {:ok, data} = :file.pread(device, 0, 32)
 

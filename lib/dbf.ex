@@ -21,11 +21,9 @@ defmodule DBF do
       version: version
     })
 
-    {:ok, raw_fields} = :file.pread(file, 32, db.header_bytes-32)
-
     {:ok, %DB{ db |
       memo_file: M.find_memo_file(db.filename),
-      fields: F.parse_fields(raw_fields)
+      fields: F.parse_fields(db)
     }}
   end
 

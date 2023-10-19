@@ -13,10 +13,40 @@ defmodule DBF.Fields do
   }
   @moduledoc false
 
-  def parse_fields(field_string) do
-    parse_fields(field_string, [])
+
+  def parse_fields(%DBF.Database{version: 0x02}=db) do
+    {:ok, raw_fields} = :file.pread(db.device, 8, db.header_bytes-32)
+    parse_fields_string_foxbase(raw_fields, [])
   end
-  defp parse_fields(<<
+  def parse_fields(db) do
+    {:ok, raw_fields} = :file.pread(db.device, 32, db.header_bytes-32)
+    parse_fields_string(raw_fields, [])
+  end
+
+  defp parse_fields_string_foxbase(<<"\r",_::binary>>, acc) do
+    Enum.reverse(acc)
+  end
+  defp parse_fields_string_foxbase(<<
+      name::binary-size(11),
+      type::binary-size(1),
+      length::unsigned-integer-8,
+      _junk::binary-size(3),
+      rest::binary
+    >>, acc) do
+    # IO.puts("name: #{String.trim(name, <<0>>)} type: #{type} length: #{length} decimal: #{decimal}")
+    field = %__MODULE__{
+      name: String.trim(name, <<0>>),
+      type: type,
+      length: length,
+      decimal: 0
+    }
+    parse_fields_string_foxbase(rest, [field | acc])
+  end
+  defp parse_fields_string_foxbase(_bang, acc) do
+    Enum.reverse(acc)
+  end
+
+  defp parse_fields_string(<<
       name::binary-size(11),
       type::binary-size(1),
       _address::unsigned-integer-32,
@@ -36,9 +66,9 @@ defmodule DBF.Fields do
       length: length,
       decimal: decimal
     }
-    parse_fields(rest, [field | acc])
+    parse_fields_string(rest, [field | acc])
   end
-  defp parse_fields(_bang, acc) do
+  defp parse_fields_string(_bang, acc) do
     Enum.reverse(acc)
   end
 
