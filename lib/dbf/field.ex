@@ -1,11 +1,11 @@
-defmodule DBF.Fields do
+defmodule DBF.Field do
   defstruct [
     :name,
     :type,
     :length,
     :decimal
   ]
-  @type t :: %DBF.Fields{
+  @type t :: %DBF.Field{
     name: binary,
     type: binary,
     length: integer,

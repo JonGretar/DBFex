@@ -1,6 +1,6 @@
 defmodule DBF do
   alias DBF.Database, as: DB
-  alias DBF.Fields, as: F
+  alias DBF.Field, as: F
   alias DBF.Record, as: R
   alias DBF.Memo, as: M
 
