@@ -47,6 +47,9 @@ defmodule DBF.Record do
       :error -> nil
     end
   end
+  defp read_field(%DBF.Database{memo_file: false}, %{type: "M"}, value) do
+    :missing_memo_file
+  end
   defp read_field(db, %{type: "M"}, value) do
     new_value = value |> String.trim()
     if (new_value == "") do
