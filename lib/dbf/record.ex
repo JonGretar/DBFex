@@ -21,6 +21,9 @@ defmodule DBF.Record do
   defp read_field(_db, %{type: "C"}, value) do
     value |> String.trim()
   end
+  defp read_field(_db, %{type: "V"}, value) do
+    value |> String.trim()
+  end
   defp read_field(_db, %{type: "F"}, value) do
     case value |> String.trim() do
       "" -> nil
@@ -47,7 +50,7 @@ defmodule DBF.Record do
       :error -> nil
     end
   end
-  defp read_field(%DBF.Database{memo_file: false}, %{type: "M"}, value) do
+  defp read_field(%DBF.Database{memo_file: false}, %{type: "M"}, _value) do
     :missing_memo_file
   end
   defp read_field(db, %{type: "M"}, value) do
@@ -58,6 +61,9 @@ defmodule DBF.Record do
       block = new_value |> String.to_integer()
       DBF.Memo.get_block(db.memo_file, block)
     end
+  end
+  defp read_field(_db, %{type: "0"}, _value) do
+    nil
   end
   defp read_field(_db, %{type: "D"}, "        ") do
     nil
