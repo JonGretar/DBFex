@@ -33,8 +33,11 @@ defmodule DBF do
     db
   end
 
-  @spec close!(DBF.Database.t()) :: :ok | {:error, atom()}
-  def close!(%DBF.Database{device: dev}) do
+  @spec close(DBF.Database.t()) :: :ok | {:error, atom()}
+  def close(%DBF.Database{device: dev}=db) do
+    if db.memo_file and db.memo_file.device do
+      File.close(db.memo_file.device)
+    end
     File.close(dev)
   end
 

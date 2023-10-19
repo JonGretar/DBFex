@@ -5,7 +5,7 @@ defmodule DBFTest do
   describe "When reading the bay area zip codes file" do
     setup do
       db = DBF.open!("test/dbf_files/bayarea_zipcodes.dbf")
-      on_exit(fn -> DBF.close!(db) end)
+      on_exit(fn -> DBF.close(db) end)
       {:ok, db: db}
     end
 
@@ -33,7 +33,7 @@ defmodule DBFTest do
   describe "When reading version (02) FoxBase" do
     setup do
       db = DBF.open!("test/dbf_files/dbase_02.dbf")
-      on_exit(fn -> DBF.close!(db) end)
+      on_exit(fn -> DBF.close(db) end)
       {:ok, db: db}
     end
 
@@ -62,7 +62,7 @@ defmodule DBFTest do
   describe "When reading version (03) dBase III without memo file" do
     setup do
       db = DBF.open!("test/dbf_files/dbase_03.dbf")
-      on_exit(fn -> DBF.close!(db) end)
+      on_exit(fn -> DBF.close(db) end)
       {:ok, db: db}
     end
 
@@ -91,7 +91,7 @@ defmodule DBFTest do
   describe "When reading version (32) Visual FoxPro with field type Varchar or Varbinary" do
     setup do
       db = DBF.open!("test/dbf_files/dbase_32.dbf")
-      on_exit(fn -> DBF.close!(db) end)
+      on_exit(fn -> DBF.close(db) end)
       {:ok, db: db}
     end
 
@@ -119,7 +119,7 @@ defmodule DBFTest do
   describe "When reading version (8b) dBase IV with memo file" do
     setup do
       db = DBF.open!("test/dbf_files/dbase_8b.dbf")
-      on_exit(fn -> DBF.close!(db) end)
+      on_exit(fn -> DBF.close(db) end)
       {:ok, db: db}
     end
 
@@ -148,7 +148,7 @@ defmodule DBFTest do
   describe "When reading version (83) dBase III with memo file" do
     setup do
       db = DBF.open!("test/dbf_files/dbase_83.dbf")
-      on_exit(fn -> DBF.close!(db) end)
+      on_exit(fn -> DBF.close(db) end)
       {:ok, db: db}
     end
 
@@ -176,7 +176,7 @@ defmodule DBFTest do
   describe "When reading version (f5) FoxPro with memo file" do
     setup do
       db = DBF.open!("test/dbf_files/dbase_f5.dbf")
-      on_exit(fn -> DBF.close!(db) end)
+      on_exit(fn -> DBF.close(db) end)
       {:ok, db: db}
     end
 
