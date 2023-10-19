@@ -46,6 +46,9 @@ defmodule DBF.Fields do
     Enum.reverse(acc)
   end
 
+  defp parse_fields_string(<<"\r",_::binary>>, acc) do
+    Enum.reverse(acc)
+  end
   defp parse_fields_string(<<
       name::binary-size(11),
       type::binary-size(1),
