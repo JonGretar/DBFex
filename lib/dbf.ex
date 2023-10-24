@@ -34,7 +34,7 @@ defmodule DBF do
   end
 
   @spec close(DBF.Database.t()) :: :ok | {:error, atom()}
-  def close(%DBF.Database{device: dev}=db) do
+  def close(%DBF.Database{device: dev}=db) when is_struct(db, DBF.Database) do
     if db.memo_file do
       File.close(db.memo_file.device)
     end
@@ -44,6 +44,9 @@ defmodule DBF do
 
   @spec get(DBF.Database.t(), integer()) ::
           {:deleted_record, list()} | {:record, list()} | {:unknown, list()}
+  def get(%DBF.Database{number_of_records: total}, record_number) when record_number >= total do
+    {:error, :record_not_found}
+  end
   def get(%DBF.Database{device: dev,
                         record_bytes: record_bytes,
                         header_bytes: header_bytes

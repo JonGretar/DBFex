@@ -25,6 +25,10 @@ defmodule DBFTest do
       assert DBF.get(context.db, 0)
     end
 
+    test "it errors when requesting too high of a record ID", context do
+      assert {:error, :record_not_found} == DBF.get(context.db, 187)
+    end
+
     test "then the number of records should match the header", context do
       assert context.db.number_of_records == context.db |> Enum.to_list() |> length()
     end
