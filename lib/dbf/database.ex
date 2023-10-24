@@ -108,9 +108,8 @@ end
 
 # Define the Enumerable implentation for the database.
 defimpl Enumerable, for: DBF.Database do
-  def count(_db) do
-    # {:ok, db.number_of_records}
-    {:error, __MODULE__}
+  def count(db) do
+    {:ok, db.number_of_records}
   end
 
   def reduce(db, {:cont, acc}, fun) do
