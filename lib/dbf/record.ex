@@ -1,4 +1,5 @@
 defmodule DBF.Record do
+  alias DBF.DatabaseError, as: DBError
 
   def parse_record(db, data) do
     parse_record(db, db.fields, data, %{})
@@ -51,7 +52,7 @@ defmodule DBF.Record do
     end
   end
   defp read_field(%DBF.Database{memo_file: false}, %{type: "M"}, _value) do
-    :missing_memo_file
+    raise DBError, reason: :missing_memo_file
   end
   defp read_field(db, %{type: "M"}, value) do
     new_value = value |> String.trim()
@@ -74,8 +75,9 @@ defmodule DBF.Record do
   defp read_field(_db, %{type: "D"}, _) do
     throw "Invalid Date"
   end
-  defp read_field(_db, field, _value) do
-    throw "Unhandled Field Type: #{inspect(field)}"
+  defp read_field(_db, _field, _value) do
+    # TODO: Let's say what the erroring field is.
+    raise DBError, reason: :unhandled_field_type
   end
 
 end

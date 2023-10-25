@@ -1,4 +1,5 @@
 defmodule DBF.Memo do
+  alias DBF.Database, as: DB
   defstruct [
     :device,
     :block_size
@@ -8,9 +9,12 @@ defmodule DBF.Memo do
     block_size: integer
   }
 
-  def find_memo_file(filename) do
-    # change the extension to .dbt
+  def find_memo_file(%DB{filename: filename}=db) do
+    {:ok, %DB{db | memo_file: locate_file(filename) }}
+  end
 
+  defp locate_file(filename) do
+    # change the extension to .dbt
     memo_filename = (filename |> Path.rootname() ) <> ".dbt"
     if File.exists?(memo_filename) do
       # IO.puts("Found memo file: #{memo_filename}")

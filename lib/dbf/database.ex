@@ -136,5 +136,4 @@ defimpl Enumerable, for: DBF.Database do
   def member?(_array, _element) do
     {:error, __MODULE__}
   end
-
 end

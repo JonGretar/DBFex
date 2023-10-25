@@ -13,14 +13,15 @@ defmodule DBF.Field do
   }
   @moduledoc false
 
-
   def parse_fields(%DBF.Database{version: 0x02}=db) do
     {:ok, raw_fields} = :file.pread(db.device, 8, db.header_bytes-32)
-    parse_fields_string_foxbase(raw_fields, [])
+    fields = parse_fields_string_foxbase(raw_fields, [])
+    {:ok, %DBF.Database{db | fields: fields} }
   end
   def parse_fields(db) do
     {:ok, raw_fields} = :file.pread(db.device, 32, db.header_bytes-32)
-    parse_fields_string(raw_fields, [])
+    fields = parse_fields_string(raw_fields, [])
+    {:ok, %DBF.Database{db | fields: fields} }
   end
 
   defp parse_fields_string_foxbase(<<"\r",_::binary>>, acc) do

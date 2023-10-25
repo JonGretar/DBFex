@@ -9,28 +9,26 @@ defmodule DBF do
   """
 
 
-  @spec open(binary()) :: {:ok, DBF.Database.t()}
+  @spec open(binary()) :: {:ok, DBF.Database.t()} | {:error, any()}
   def open(filename) when is_binary(filename) do
-    {:ok, file} = File.open(filename, [:read, :binary])
-
-    {:ok, <<version::unsigned-integer-8>>} = :file.pread(file, 0, 1)
-
-    {:ok, db} = DB.read_header(%DB{
-      device: file,
-      filename: filename,
-      version: version
-    })
-
-    {:ok, %DB{ db |
-      memo_file: M.find_memo_file(db.filename),
-      fields: F.parse_fields(db)
-    }}
+    db = %DB{filename: filename}
+    with {:ok, file} <- File.open(db.filename, [:read, :binary]),
+         {:ok, db} = read_version(%DB{db | device: file}),
+         {:ok, db} = DB.read_header(db),
+         {:ok, db} = M.find_memo_file(db),
+         {:ok, db} = F.parse_fields(db) do
+      {:ok, db}
+    else
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   @spec open!(binary()) :: DBF.Database.t()
   def open!(filename) when is_binary(filename) do
-    {:ok, db} = open(filename)
-    db
+    case open(filename) do
+      {:ok, db} -> db
+      {:error, reason} -> raise DBF.DatabaseError, reason: reason
+    end
   end
 
   @spec close(DBF.Database.t()) :: :ok | {:error, atom()}
@@ -61,7 +59,9 @@ defmodule DBF do
     {type, R.parse_record(db, data)}
   end
 
-
-
+  defp read_version(db) do
+    {:ok, <<version::unsigned-integer-8>>} = :file.pread(db.device, 0, 1)
+    {:ok, %DB{db | version: version}}
+  end
 
 end
