@@ -4,28 +4,37 @@ defmodule DBF do
   alias DBF.Record, as: R
   alias DBF.Memo, as: M
 
+  @type options() :: [
+    memo_file: String.t(),
+    allow_missing_memo: boolean()
+  ]
+
+  @default_options [
+    memo_file: nil,
+    allow_missing_memo: false
+  ]
+
   @moduledoc """
   Documentation for `DBF`.
   """
 
-
-  @spec open(binary()) :: {:ok, DBF.Database.t()} | {:error, any()}
-  def open(filename) when is_binary(filename) do
-    db = %DB{filename: filename}
-    with {:ok, file} <- File.open(db.filename, [:read, :binary]),
-         {:ok, db} = read_version(%DB{db | device: file}),
-         {:ok, db} = DB.read_header(db),
-         {:ok, db} = M.find_memo_file(db),
-         {:ok, db} = F.parse_fields(db) do
+  @spec open(String.t(), options()) :: {:ok, DBF.Database.t()} | {:error, any()}
+  def open(filename, options \\ []) when is_binary(filename) do
+    with {:ok, db} <- create_database_struct(filename, options),
+         {:ok, db} <- read_version(db),
+         {:ok, db} <- DB.read_header(db),
+         {:ok, db} <- M.find_memo_file(db),
+         {:ok, db} <- F.parse_fields(db)
+    do
       {:ok, db}
     else
-      {:error, reason} -> {:error, reason}
+      error -> error
     end
   end
 
-  @spec open!(binary()) :: DBF.Database.t()
-  def open!(filename) when is_binary(filename) do
-    case open(filename) do
+  @spec open!(String.t(), options()) :: DBF.Database.t()
+  def open!(filename, options \\ []) when is_binary(filename) do
+    case open(filename, options) do
       {:ok, db} -> db
       {:error, reason} -> raise DBF.DatabaseError, reason: reason
     end
@@ -38,7 +47,6 @@ defmodule DBF do
     end
     File.close(dev)
   end
-
 
   @spec get(DBF.Database.t(), integer()) ::
           {:deleted_record, list()} | {:record, list()} | {:unknown, list()}
@@ -59,9 +67,39 @@ defmodule DBF do
     {type, R.parse_record(db, data)}
   end
 
+  @spec options(DBF.Database.t(), atom()) :: any()
+  def options(%DBF.Database{options: options}, key) do
+    if Keyword.has_key?(options, key) do
+      Keyword.get(options, key)
+    else
+      Keyword.get(@default_options, key)
+    end
+  end
+
   defp read_version(db) do
     {:ok, <<version::unsigned-integer-8>>} = :file.pread(db.device, 0, 1)
     {:ok, %DB{db | version: version}}
+  end
+
+  defp create_database_struct(filename, options) do
+    with {:ok, file} <- File.open(filename, [:read, :binary]),
+         :ok <- validate_options(options)
+    do
+      {:ok, %DB{filename: filename, device: file, options: options} }
+    else
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp validate_options([{key, _}|rest]) do
+    if Keyword.has_key?(@default_options, key) do
+      validate_options(rest)
+    else
+      {:error, :invalid_option}
+    end
+  end
+  defp validate_options([]) do
+    :ok
   end
 
 end

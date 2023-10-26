@@ -4,6 +4,7 @@ defmodule DBF.Database do
     :filename,
     :memo_file,
     :version,
+    :options,
     :last_updated,
     :number_of_records,
     :header_bytes,
@@ -14,11 +15,12 @@ defmodule DBF.Database do
   @type t :: %DBF.Database{
     device: File.stream,
     filename: String.t,
-    memo_file: DBF.Memo.t,
+    memo_file: DBF.Memo.t | false,
     version: integer,
+    options: DBF.options(),
     last_updated: {integer, integer, integer},
     number_of_records: integer,
-    header_bytes: integer,
+    header_bytes: integer | char(),
     record_bytes: integer,
     fields: [{binary, binary}],
     position: integer
@@ -47,6 +49,7 @@ defmodule DBF.Database do
   }
 
 
+  @spec read_header(DBF.Database.t()) :: {:ok, DBF.Database.t()}
   def read_header(%__MODULE__{version: 0x02, device: device}=db) do
     {:ok, data} = :file.pread(device, 0, 8)
 
