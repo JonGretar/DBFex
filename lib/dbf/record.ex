@@ -5,7 +5,7 @@ defmodule DBF.Record do
     parse_record(db, db.fields, data, %{})
   end
   defp parse_record(_db, _fields, <<>>, acc) do
-    Enum.reverse(acc)
+    acc
   end
   defp parse_record(db, [field| more_fields], data, acc) do
     <<raw_value::binary-size(field.length), rest::binary>> = data
