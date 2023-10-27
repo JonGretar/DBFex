@@ -23,7 +23,7 @@ defmodule DBF do
     with {:ok, db} <- create_database_struct(filename, options),
          {:ok, db} <- read_version(db),
          {:ok, db} <- DB.read_header(db),
-         {:ok, db} <- M.find_memo_file(db),
+         {:ok, db} <- open_memo_file(db),
          {:ok, db} <- F.parse_fields(db)
     do
       {:ok, db}
@@ -65,6 +65,39 @@ defmodule DBF do
       _ -> :unknown
     end
     {type, R.parse_record(db, data)}
+  end
+
+  @spec has_memo_file?(DBF.Database.t()) :: boolean()
+  def has_memo_file?(%DBF.Database{memo_file: nil}), do: false
+  def has_memo_file?(%DBF.Database{memo_file: _}), do: true
+
+  defp open_memo_file(%DBF.Database{version: version}=db) do
+    case search_memo_file(db) do
+      nil ->
+        {:ok, db}
+      memo_filename ->
+        {:ok, memo_file} = M.open(memo_filename, version)
+        {:ok, %DB{db | memo_file: memo_file} }
+    end
+  end
+
+  @spec search_memo_file(DBF.Database.t()) :: String.t() | nil
+  defp search_memo_file(db) when is_struct(db) do
+    case options(db, :memo_file) do
+      nil ->
+        search_memo_file_wildly(db.filename)
+      memo_filename ->
+        memo_filename
+    end
+  end
+
+  defp search_memo_file_wildly(filename) do
+    search_path = (filename |> Path.rootname() ) <> ".{fpt,FPT,dbt,DBT}"
+    case Path.wildcard(search_path) do
+      [memo_filename] -> memo_filename
+      [] -> nil
+      _ -> raise "Multiple memo files found for #{filename}"
+    end
   end
 
   @spec options(DBF.Database.t(), atom()) :: any()
