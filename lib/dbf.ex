@@ -5,7 +5,7 @@ defmodule DBF do
   alias DBF.Memo, as: M
 
   @type options() :: [
-    memo_file: String.t(),
+    memo_file: String.t() | nil,
     allow_missing_memo: boolean()
   ]
 
@@ -49,7 +49,7 @@ defmodule DBF do
   end
 
   @spec get(DBF.Database.t(), integer()) ::
-          {:deleted_record, list()} | {:record, list()} | {:unknown, list()}
+          {:deleted_record, map()} | {:record, map()} | {:unknown, map()}
   def get(%DBF.Database{number_of_records: total}, record_number) when record_number >= total do
     {:error, :record_not_found}
   end
@@ -83,10 +83,12 @@ defmodule DBF do
 
   @spec search_memo_file(DBF.Database.t()) :: String.t() | nil
   defp search_memo_file(db) when is_struct(db) do
-    case options(db, :memo_file) do
+
+    d = options(db, :memo_file)
+    case d do
       nil ->
         search_memo_file_wildly(db.filename)
-      memo_filename ->
+      memo_filename when is_binary(memo_filename) ->
         memo_filename
     end
   end
@@ -100,7 +102,7 @@ defmodule DBF do
     end
   end
 
-  @spec options(DBF.Database.t(), atom()) :: any()
+
   def options(%DBF.Database{options: options}, key) do
     if Keyword.has_key?(options, key) do
       Keyword.get(options, key)
