@@ -6,15 +6,10 @@ At the moment it only supports read.
 
 ## Installation
 
-The package can be installed
-by adding `dbf` to your list of dependencies in `mix.exs`:
+The package is a work in progress. It is not yet available in hex.
 
-```elixir
-def deps do
-  [
-    {:dbf, "~> 0.1.0"}
-  ]
-end
+I will release it in a couple of weeks.
+
 
 ## Usage
 
