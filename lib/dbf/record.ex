@@ -31,8 +31,11 @@ defmodule DBF.Record do
       new_value -> new_value |> String.to_float()
     end
   end
-  defp read_field(_db, %{type: "I"}, value) do
-    value |> String.trim() |> String.to_integer()
+  defp read_field(_db, %{type: "I"}, <<value::signed-big-integer-32>>) do
+    value
+  end
+  defp read_field(_db, %{type: "Y", decimal: decimal}, <<value::signed-little-integer-64>>) do
+    value / :math.pow(10, decimal)
   end
   defp read_field(_db, %{type: "L"}, value) do
     # Read logical operations.
