@@ -34,7 +34,6 @@ defmodule DBF.Field do
       _junk::binary-size(3),
       rest::binary
     >>, acc) do
-    # IO.puts("name: #{String.trim(name, <<0>>)} type: #{type} length: #{length} decimal: #{decimal}")
     field = %__MODULE__{
       name: String.trim(name, <<0>>),
       type: type,
@@ -63,7 +62,6 @@ defmodule DBF.Field do
       _reserved3::binary-size(8),
       rest::binary
     >>, acc) do
-    # IO.puts("name: #{String.trim(name, <<0>>)} type: #{type} length: #{length} decimal: #{decimal}")
     field = %__MODULE__{
       name: String.trim(name, <<0>>),
       type: type,
