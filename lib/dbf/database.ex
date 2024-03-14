@@ -1,4 +1,5 @@
 defmodule DBF.Database do
+  alias DBF.Memo
   defstruct [
     :device,
     :filename,
@@ -12,10 +13,10 @@ defmodule DBF.Database do
     fields: [],
     position: 0
   ]
-  @type t :: %DBF.Database{
+  @type t :: %__MODULE__{
     device: pid() | {:file_descriptor, atom(), any()},
     filename: String.t(),
-    memo_file: DBF.Memo.t() | false,
+    memo_file: Memo.t() | false,
     version: byte(),
     options: DBF.options(),
     last_updated: Date.t(),
@@ -110,10 +111,15 @@ end
 
 # Define the Enumerable implentation for the database.
 defimpl Enumerable, for: DBF.Database do
+  @spec count(DBF.Database.t()) :: {:ok, any()}
   def count(db) do
     {:ok, db.number_of_records}
   end
 
+  @spec reduce(DBF.Database.t(), {:cont, any()} | {:halt, any()} | {:suspend, any()}, any()) ::
+          {:done, any()}
+          | {:halted, any()}
+          | {:suspended, any(), ({any(), any()} -> {any(), any()} | {any(), any(), any()})}
   def reduce(db, {:cont, acc}, fun) do
     if (db.position == db.number_of_records) do
       {:done, acc}
@@ -131,11 +137,14 @@ defimpl Enumerable, for: DBF.Database do
     {:suspended, acc, &reduce(db, &1, fun)}
   end
 
+  @spec slice(DBF.Database.t()) :: {:error, Enumerable.DBF.Database}
   def slice(_array) do
     {:error, __MODULE__}
   end
 
+  @spec member?(DBF.Database.t(), any()) :: {:error, Enumerable.DBF.Database}
   def member?(_array, _element) do
     {:error, __MODULE__}
   end
+
 end

@@ -1,8 +1,9 @@
 defmodule DBF do
-  alias DBF.Database, as: DB
-  alias DBF.Field, as: F
-  alias DBF.Record, as: R
-  alias DBF.Memo, as: M
+  alias DBF.Database
+  alias DBF.Field
+  alias DBF.Record
+  alias DBF.Memo
+  # alias DBF.DatabaseError
 
   @type options() :: [
     memo_file: String.t() | nil,
@@ -18,13 +19,14 @@ defmodule DBF do
   Documentation for `DBF`.
   """
 
-  @spec open(String.t(), options()) :: {:ok, DBF.Database.t()} | {:error, any()}
+  @spec open(String.t()) :: {:ok, Database.t()} | {:error, Error.t()}
+  @spec open(String.t(), options()) :: {:ok, Database.t()} | {:error, atom()}
   def open(filename, options \\ []) when is_binary(filename) do
     with {:ok, db} <- create_database_struct(filename, options),
          {:ok, db} <- read_version(db),
-         {:ok, db} <- DB.read_header(db),
+         {:ok, db} <- Database.read_header(db),
          {:ok, db} <- open_memo_file(db),
-         {:ok, db} <- F.parse_fields(db)
+         {:ok, db} <- Field.parse_fields(db)
     do
       {:ok, db}
     else
@@ -32,28 +34,29 @@ defmodule DBF do
     end
   end
 
-  @spec open!(String.t(), options()) :: DBF.Database.t()
+  @spec open!(String.t(), options()) :: Database.t()
+  @spec open!(binary()) :: Database.t()
   def open!(filename, options \\ []) when is_binary(filename) do
     case open(filename, options) do
       {:ok, db} -> db
-      {:error, reason} -> raise DBF.DatabaseError, reason: reason
+      {:error, error} -> raise error
     end
   end
 
-  @spec close(DBF.Database.t()) :: :ok | {:error, atom()}
-  def close(%DBF.Database{device: dev}=db) when is_struct(db, DBF.Database) do
+  @spec close(Database.t()) :: :ok | {:error, atom()}
+  def close(%Database{device: dev}=db) when is_struct(db, Database) do
     if db.memo_file do
       File.close(db.memo_file.device)
     end
     File.close(dev)
   end
 
-  @spec get(DBF.Database.t(), integer()) ::
+  @spec get(Database.t(), integer()) ::
           {:deleted_record, map()} | {:record, map()} | {:unknown, map()}
-  def get(%DBF.Database{number_of_records: total}, record_number) when record_number >= total do
+  def get(%Database{number_of_records: total}, record_number) when record_number >= total do
     {:error, :record_not_found}
   end
-  def get(%DBF.Database{device: dev,
+  def get(%Database{device: dev,
                         record_bytes: record_bytes,
                         header_bytes: header_bytes
                         } = db, record_number) do
@@ -64,24 +67,24 @@ defmodule DBF do
       "*" -> :deleted_record
       _ -> :unknown
     end
-    {type, R.parse_record(db, data)}
+    {type, Record.parse_record(db, data)}
   end
 
-  @spec has_memo_file?(DBF.Database.t()) :: boolean()
-  def has_memo_file?(%DBF.Database{memo_file: nil}), do: false
-  def has_memo_file?(%DBF.Database{memo_file: _}), do: true
+  @spec has_memo_file?(Database.t()) :: boolean()
+  def has_memo_file?(%Database{memo_file: nil}), do: false
+  def has_memo_file?(%Database{memo_file: _}), do: true
 
-  defp open_memo_file(%DBF.Database{version: version}=db) do
+  defp open_memo_file(%Database{version: version}=db) do
     case search_memo_file(db) do
       nil ->
         {:ok, db}
       memo_filename ->
-        {:ok, memo_file} = M.open(memo_filename, version)
-        {:ok, %DB{db | memo_file: memo_file} }
+        {:ok, memo_file} = Memo.open(memo_filename, version)
+        {:ok, %Database{db | memo_file: memo_file} }
     end
   end
 
-  @spec search_memo_file(DBF.Database.t()) :: String.t() | nil
+  @spec search_memo_file(Database.t()) :: String.t() | nil
   defp search_memo_file(db) when is_struct(db) do
 
     d = options(db, :memo_file)
@@ -103,7 +106,7 @@ defmodule DBF do
   end
 
 
-  def options(%DBF.Database{options: options}, key) do
+  def options(%Database{options: options}, key) do
     if Keyword.has_key?(options, key) do
       Keyword.get(options, key)
     else
@@ -113,14 +116,14 @@ defmodule DBF do
 
   defp read_version(db) do
     {:ok, <<version::unsigned-integer-8>>} = :file.pread(db.device, 0, 1)
-    {:ok, %DB{db | version: version}}
+    {:ok, %Database{db | version: version}}
   end
 
   defp create_database_struct(filename, options) do
     with {:ok, file} <- File.open(filename, [:read, :binary]),
          :ok <- validate_options(options)
     do
-      {:ok, %DB{filename: filename, device: file, options: options} }
+      {:ok, %Database{filename: filename, device: file, options: options} }
     else
       {:error, reason} -> {:error, reason}
     end

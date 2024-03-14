@@ -1,5 +1,6 @@
 defmodule DBF.Record do
-  alias DBF.DatabaseError, as: DBError
+  alias DBF.DatabaseError
+  alias DBF.Memo
 
   def parse_record(db, data) do
     parse_record(db, db.fields, data, %{})
@@ -55,7 +56,8 @@ defmodule DBF.Record do
     end
   end
   defp read_field(%DBF.Database{memo_file: false}, %{type: "M"}, _value) do
-    raise DBError, reason: :missing_memo_file
+    # TODO: Do not raise here
+    raise DatabaseError, reason: :missing_memo_file
   end
   defp read_field(db, %{type: "M"}, value) do
     new_value = value |> String.trim()
@@ -63,7 +65,7 @@ defmodule DBF.Record do
       nil
     else
       block = new_value |> String.to_integer()
-      DBF.Memo.get_block(db.memo_file, block)
+      Memo.get_block(db.memo_file, block)
     end
   end
   defp read_field(_db, %{type: "0"}, _value) do
@@ -80,7 +82,8 @@ defmodule DBF.Record do
   end
   defp read_field(_db, _field, _value) do
     # TODO: Let's say what the erroring field is.
-    raise DBError, reason: :unhandled_field_type
+    # TODO: Incorrect raising?
+    raise DatabaseError, reason: :unhandled_field_type
   end
 
 end

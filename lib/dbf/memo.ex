@@ -1,4 +1,5 @@
 defmodule DBF.Memo do
+  alias DBF.DatabaseError
   defstruct [
     :version,
     :device,
@@ -10,7 +11,7 @@ defmodule DBF.Memo do
     block_size: integer
   }
 
-  @spec open(binary(), integer()) :: {:error, :enoent} | DBF.Memo.t()
+  @spec open(binary(), integer()) :: DBF.Memo.t() | {:error, DatabaseError.t()}
   def open(path, version) when is_binary(path) and is_integer(version) do
     if File.exists?(path) do
       {:ok, file} = File.open(path, [:read, :binary])
@@ -22,13 +23,13 @@ defmodule DBF.Memo do
         block_size: (if block_size > 0, do: block_size, else: 512)
       }}
     else
-      {:error, :enoent}
+      {:error, DatabaseError.new(:enoent)}
     end
   end
 
   @spec get_block(DBF.Memo.t(), any()) :: binary() | {:error, atom()}
   def get_block(nil, _) do
-    {:error, :missing_memo_file}
+    {:error, DatabaseError.new(:missing_memo_file)}
   end
 
   def get_block(%DBF.Memo{version: 0x83, device: dev, block_size: block_size}, block_number) do
@@ -40,7 +41,6 @@ defmodule DBF.Memo do
   def get_block(%DBF.Memo{device: dev, block_size: block_size}, block_number) do
     offset = block_number * block_size
     {:ok, <<_type::binary-size(4), length::little-unsigned-integer-32>>} = :file.pread(dev, offset, 8)
-    # IO.puts("Reading memo block #{block_number} with length #{length} from offset #{offset+8}")
     {:ok, raw_data} = :file.pread(dev, offset+8, length)
     raw_data |> String.replace([<<31>>], "") |> String.trim()
   end

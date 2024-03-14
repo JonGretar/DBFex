@@ -1,4 +1,5 @@
 defmodule DBF.Field do
+  alias DBF.Database
   defstruct [
     :name,
     :type,
@@ -13,15 +14,15 @@ defmodule DBF.Field do
   }
   @moduledoc false
 
-  def parse_fields(%DBF.Database{version: 0x02}=db) do
+  def parse_fields(%Database{version: 0x02}=db) do
     {:ok, raw_fields} = :file.pread(db.device, 8, db.header_bytes-32)
     fields = parse_fields_string_foxbase(raw_fields, [])
-    {:ok, %DBF.Database{db | fields: fields} }
+    {:ok, %Database{db | fields: fields} }
   end
   def parse_fields(db) do
     {:ok, raw_fields} = :file.pread(db.device, 32, db.header_bytes-32)
     fields = parse_fields_string(raw_fields, [])
-    {:ok, %DBF.Database{db | fields: fields} }
+    {:ok, %Database{db | fields: fields} }
   end
 
   defp parse_fields_string_foxbase(<<"\r",_::binary>>, acc) do
@@ -34,6 +35,7 @@ defmodule DBF.Field do
       _junk::binary-size(3),
       rest::binary
     >>, acc) do
+
     field = %__MODULE__{
       name: String.trim(name, <<0>>),
       type: type,
