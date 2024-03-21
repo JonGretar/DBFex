@@ -7,7 +7,25 @@ defmodule DBF.MixProject do
       version: "0.1.0",
       elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
+      package: package(),
+      description: description(),
+      licenses: ["MIT"],
+      docs: docs(),
       deps: deps()
+    ]
+  end
+
+  defp description do
+    """
+    Read DBASE files in Elixir.
+
+    At the moment it only supports read.
+    """
+  end
+
+  def docs do
+    [
+      main: "DBF"
     ]
   end
 
@@ -15,6 +33,17 @@ defmodule DBF.MixProject do
   def application do
     [
       extra_applications: [:logger]
+    ]
+  end
+
+  defp package do
+    # These are the default files included in the package
+    [
+      files: ["lib", "mix.exs", "README.md"],
+      maintainers: ["Jón Grétar Borgþórsson"],
+      licenses: ["MIT"],
+      source_url: "https://github.com/JonGretar/DBFex",
+      links: %{"GitHub" => "https://github.com/JonGretar/DBFex"}
     ]
   end
 
