@@ -48,6 +48,8 @@ defmodule DBF.Database do
     0xe5 => "HiPer-Six format with SMT memo file",
     0xfb => "FoxPro without memo file"
   }
+  @foxpro_versions [0x30, 0x31, 0x32, 0xf5, 0xfb]
+  @supported_versions [0x02, 0x03, 0x83]
 
   def open_database(%__MODULE__{}=db) do
     with {:ok, db} <- read_version(db),
@@ -77,7 +79,6 @@ defmodule DBF.Database do
     } }
   end
 
-  def read_header(%__MODULE__{device: device}=db) do
   defp read_header(%__MODULE__{device: device}=db) do
     {:ok, data} = :file.pread(device, 0, 32)
 
@@ -109,7 +110,7 @@ defmodule DBF.Database do
 
   @spec foxpro?(DBF.Database.t()) :: boolean()
   def foxpro?(%__MODULE__{version: version}) do
-    version in [0x30, 0x31, 0x32, 0xf5, 0xfb]
+    version in @foxpro_versions
   end
 
   @spec well_known_version?(DBF.Database.t()) :: boolean()
