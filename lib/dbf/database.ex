@@ -49,8 +49,17 @@ defmodule DBF.Database do
     0xfb => "FoxPro without memo file"
   }
 
+  def open_database(%__MODULE__{}=db) do
+    with {:ok, db} <- read_version(db),
+         {:ok, db} <- read_header(db)
+    do
+      {:ok, db}
+    else
+      error -> error
+    end
+  end
 
-  def read_header(%__MODULE__{version: 0x02, device: device}=db) do
+  defp read_header(%__MODULE__{version: 0x02, device: device}=db) do
     {:ok, data} = :file.pread(device, 0, 8)
 
     <<
@@ -69,6 +78,7 @@ defmodule DBF.Database do
   end
 
   def read_header(%__MODULE__{device: device}=db) do
+  defp read_header(%__MODULE__{device: device}=db) do
     {:ok, data} = :file.pread(device, 0, 32)
 
     <<
@@ -105,6 +115,11 @@ defmodule DBF.Database do
   @spec well_known_version?(DBF.Database.t()) :: boolean()
   def well_known_version?(%__MODULE__{version: version}) do
     Map.has_key?(@versions, version)
+  end
+
+  defp read_version(db) do
+    {:ok, <<version::unsigned-integer-8>>} = :file.pread(db.device, 0, 1)
+    {:ok, %__MODULE__{db | version: version}}
   end
 
 end

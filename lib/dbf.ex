@@ -23,8 +23,7 @@ defmodule DBF do
   @spec open(String.t(), options()) :: {:ok, Database.t()} | {:error, atom()}
   def open(filename, options \\ []) when is_binary(filename) do
     with {:ok, db} <- create_database_struct(filename, options),
-         {:ok, db} <- read_version(db),
-         {:ok, db} <- Database.read_header(db),
+         {:ok, db} <- Database.open_database(db),
          {:ok, db} <- open_memo_file(db),
          {:ok, db} <- Field.parse_fields(db)
     do
@@ -86,9 +85,7 @@ defmodule DBF do
 
   @spec search_memo_file(Database.t()) :: String.t() | nil
   defp search_memo_file(db) when is_struct(db) do
-
-    d = options(db, :memo_file)
-    case d do
+    case options(db, :memo_file) do
       nil ->
         search_memo_file_wildly(db.filename)
       memo_filename when is_binary(memo_filename) ->
@@ -99,9 +96,8 @@ defmodule DBF do
   defp search_memo_file_wildly(filename) do
     search_path = (filename |> Path.rootname() ) <> ".{fpt,FPT,dbt,DBT}"
     case Path.wildcard(search_path) do
-      [memo_filename] -> memo_filename
       [] -> nil
-      _ -> raise "Multiple memo files found for #{filename}"
+      memo_file_list when is_list(memo_file_list) -> hd(memo_file_list)
     end
   end
 
