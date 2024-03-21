@@ -110,11 +110,6 @@ defmodule DBF do
     end
   end
 
-  defp read_version(db) do
-    {:ok, <<version::unsigned-integer-8>>} = :file.pread(db.device, 0, 1)
-    {:ok, %Database{db | version: version}}
-  end
-
   defp create_database_struct(filename, options) do
     with {:ok, file} <- File.open(filename, [:read, :binary]),
          :ok <- validate_options(options)
