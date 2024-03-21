@@ -14,5 +14,5 @@ defmodule DBF.DatabaseError do
   defp format_reason(:missing_memo_file), do: "Missing memo file"
   defp format_reason(:unhandled_field_type), do: "We encountered a field type that we don't know how to handle"
   defp format_reason(:enoent), do: "File not found"
-
+  defp format_reason(_), do: "UNKNOWN ERROR"
 end
