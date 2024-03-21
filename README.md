@@ -30,10 +30,10 @@ db |> Enum.to_list()
 
 The result will be a tuple ´{status, %{...}}´ with the record status being either :record or :deleted_record.
 
-You can get specific rows by using the `DBF.read_record/2` function.
+You can get specific rows by using the `DBF.get/2` function.
 
 ```elixir
-case DBF.read_record(db, 2) do
+case DBF.get(db, 2) do
   {:record, row} -> IO.inspect row
   {:deleted_record, row} -> IO.inspect row
   :eof -> IO.puts "End of file"

@@ -1,4 +1,5 @@
 defmodule DBF.Record do
+  @moduledoc false
   alias DBF.DatabaseError
   alias DBF.Memo
 

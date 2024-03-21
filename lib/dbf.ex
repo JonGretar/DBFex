@@ -16,9 +16,49 @@ defmodule DBF do
   ]
 
   @moduledoc """
-  Documentation for `DBF`.
+  Read DBASE files in Elixir.
+
+  At the moment it only supports read.
+
+  ## Installation
+
+  The package is a work in progress. It is not yet available in hex.
+
+  I will release it in a couple of weeks.
+
+
+  ## Usage
+
+  Open a file with open/1 or open/2
+
+  ```elixir
+    {:ok, db} = DBF.open("test/dbf_files/bayarea_zipcodes.dbf")
+  ```
+
+  The resulting DB follows the enumerable protocol, so you can use all the functions in the Enum module.
+
+  So to get all the records of a database you can do:
+
+  ```elixir
+    db |> Enum.to_list()
+  ```
+
+  The result will be a tuple ´{status, %{...}}´ with the record status being either :record or :deleted_record.
+
+  You can get specific rows by using the `DBF.get/2` function.
+
+  ```elixir
+    case DBF.get(db, 2) do
+      {:record, row} -> IO.inspect row
+      {:deleted_record, row} -> IO.inspect row
+      :eof -> IO.puts "End of file"
+    end
+  ```
   """
 
+  @doc """
+  Open a DBase database file.
+  """
   @spec open(String.t()) :: {:ok, Database.t()} | {:error, Error.t()}
   @spec open(String.t(), options()) :: {:ok, Database.t()} | {:error, atom()}
   def open(filename, options \\ []) when is_binary(filename) do
@@ -33,6 +73,9 @@ defmodule DBF do
     end
   end
 
+  @doc """
+  Same as `open/2` but throws errors
+  """
   @spec open!(String.t(), options()) :: Database.t()
   @spec open!(binary()) :: Database.t()
   def open!(filename, options \\ []) when is_binary(filename) do
@@ -42,6 +85,9 @@ defmodule DBF do
     end
   end
 
+  @doc """
+  Closes the file access.
+  """
   @spec close(Database.t()) :: :ok | {:error, atom()}
   def close(%Database{device: dev}=db) when is_struct(db, Database) do
     if db.memo_file do
@@ -50,6 +96,9 @@ defmodule DBF do
     File.close(dev)
   end
 
+  @doc """
+  Get a record by number.
+  """
   @spec get(Database.t(), integer()) ::
           {:deleted_record, map()} | {:record, map()} | {:unknown, map()}
   def get(%Database{number_of_records: total}, record_number) when record_number >= total do
@@ -101,7 +150,8 @@ defmodule DBF do
     end
   end
 
-
+  @doc false
+  @spec options(DBF.Database.t(), atom()) :: any()
   def options(%Database{options: options}, key) do
     if Keyword.has_key?(options, key) do
       Keyword.get(options, key)
@@ -121,6 +171,7 @@ defmodule DBF do
   end
 
   defp validate_options([{key, _}|rest]) do
+    # TODO: This needs to be fixed to be modern
     if Keyword.has_key?(@default_options, key) do
       validate_options(rest)
     else

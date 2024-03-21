@@ -108,11 +108,13 @@ defmodule DBF.Database do
   end
 
 
+  @doc false
   @spec foxpro?(DBF.Database.t()) :: boolean()
   def foxpro?(%__MODULE__{version: version}) do
     version in @foxpro_versions
   end
 
+  @doc false
   @spec well_known_version?(DBF.Database.t()) :: boolean()
   def well_known_version?(%__MODULE__{version: version}) do
     Map.has_key?(@versions, version)

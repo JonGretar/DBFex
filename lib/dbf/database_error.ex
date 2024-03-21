@@ -7,6 +7,8 @@ defmodule DBF.DatabaseError do
     format_reason(reason)
   end
 
+  @doc false
+  @spec new(atom()) :: DBF.DatabaseError.t()
   def new(reason) do
     %__MODULE__{reason: reason}
   end
