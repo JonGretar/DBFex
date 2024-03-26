@@ -3,7 +3,7 @@ defmodule DBF do
   alias DBF.Field
   alias DBF.Record
   alias DBF.Memo
-  # alias DBF.DatabaseError
+  alias DBF.DatabaseError
 
   @type options() :: [
     memo_file: String.t() | nil,
@@ -160,22 +160,19 @@ defmodule DBF do
 
   defp create_database_struct(filename, options) do
     with {:ok, file} <- File.open(filename, [:read, :binary]),
-         :ok <- validate_options(options)
+         {:ok, validated_options} <- validate_options(options)
     do
-      {:ok, %Database{filename: filename, device: file, options: options} }
+      {:ok, %Database{filename: filename, device: file, options: validated_options} }
     end
   end
 
-  defp validate_options([{key, _}|rest]) do
+  defp validate_options(option) do
     # TODO: This needs to be fixed to be modern
-    if Keyword.has_key?(@default_options, key) do
-      validate_options(rest)
-    else
-      {:error, :invalid_option}
+    case Keyword.validate(option, @default_options) do
+      {:ok, result} -> {:ok, result}
+      {:error, _} -> {:error, DatabaseError.new(:invalid_option)}
     end
   end
-  defp validate_options([]) do
-    :ok
-  end
+
 
 end
