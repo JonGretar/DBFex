@@ -57,8 +57,6 @@ defmodule DBF.Database do
          {:ok, db} <- read_header(db)
     do
       {:ok, db}
-    else
-      error -> error
     end
   end
 

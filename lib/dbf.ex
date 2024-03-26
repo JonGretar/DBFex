@@ -68,8 +68,6 @@ defmodule DBF do
          {:ok, db} <- Field.parse_fields(db)
     do
       {:ok, db}
-    else
-      error -> error
     end
   end
 
@@ -165,8 +163,6 @@ defmodule DBF do
          :ok <- validate_options(options)
     do
       {:ok, %Database{filename: filename, device: file, options: options} }
-    else
-      {:error, reason} -> {:error, reason}
     end
   end
 
