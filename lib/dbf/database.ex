@@ -1,5 +1,6 @@
 defmodule DBF.Database do
   alias DBF.Memo
+  alias DBF.DatabaseError
   defstruct [
     :device,
     :filename,
@@ -49,7 +50,7 @@ defmodule DBF.Database do
     0xfb => "FoxPro without memo file"
   }
   @foxpro_versions [0x30, 0x31, 0x32, 0xf5, 0xfb]
-  @supported_versions [0x02, 0x03, 0x83]
+  @supported_versions [0x02, 0x03, 0x83, 0x8b]
 
   def open_database(%__MODULE__{}=db) do
     with {:ok, db} <- read_version(db),
@@ -122,7 +123,12 @@ defmodule DBF.Database do
 
   defp read_version(db) do
     {:ok, <<version::unsigned-integer-8>>} = :file.pread(db.device, 0, 1)
-    {:ok, %__MODULE__{db | version: version}}
+    if version in @supported_versions do
+      {:ok, %__MODULE__{db | version: version}}
+    else
+      version_string = Map.get(@versions, version, Integer.to_string(version))
+      {:error, DatabaseError.new(:unsupported_version, version_string)}
+    end
   end
 
 end
