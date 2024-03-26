@@ -51,7 +51,7 @@ defmodule DBF do
     case DBF.get(db, 2) do
       {:record, row} -> IO.inspect row
       {:deleted_record, row} -> IO.inspect row
-      :eof -> IO.puts "End of file"
+      {:error, _} -> IO.puts "OMG"
     end
   ```
   """
