@@ -6,13 +6,13 @@ defmodule DBF do
   alias DBF.DatabaseError
 
   @type options() :: [
-    memo_file: String.t() | nil,
-    allow_missing_memo: boolean()
+    memo_file: String.t() | nil
+    # allow_missing_memo: boolean()
   ]
 
   @default_options [
-    memo_file: nil,
-    allow_missing_memo: false
+    memo_file: nil
+    # allow_missing_memo: false
   ]
 
   @moduledoc """
