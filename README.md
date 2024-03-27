@@ -9,7 +9,6 @@ At the moment it only supports read.
 Open a file with open/1 or open/2 
 
 ```elixir
-
 {:ok, db} = DBF.open("test/dbf_files/bayarea_zipcodes.dbf")
 ```
 
