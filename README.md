@@ -4,13 +4,6 @@ Read DBASE files in Elixir.
 
 At the moment it only supports read.
 
-## Installation
-
-The package is a work in progress. It is not yet available in hex.
-
-I will release it in a couple of weeks.
-
-
 ## Usage
 
 Open a file with open/1 or open/2 
