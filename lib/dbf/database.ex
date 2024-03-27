@@ -24,7 +24,7 @@ defmodule DBF.Database do
     number_of_records: integer,
     header_bytes: integer,
     record_bytes: integer,
-    fields: [{binary, binary}],
+    fields: [DBF.Field.t()],
     position: integer
   }
 
