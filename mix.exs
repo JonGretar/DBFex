@@ -39,6 +39,7 @@ defmodule DBF.MixProject do
   defp package do
     # These are the default files included in the package
     [
+      name: "DBFex",
       files: ["lib", "mix.exs", "README.md"],
       maintainers: ["Jón Grétar Borgþórsson"],
       licenses: ["MIT"],
