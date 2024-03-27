@@ -25,6 +25,17 @@ defmodule ZipcodeTest do
       assert DBF.get(context.db, 0)
     end
 
+    test "the first record is all that we wanted", context do
+      record = %{
+        "Area__" => 12313263537.0,
+        "Length__" => 995176.225313,
+        "PO_NAME" => "NAPA",
+        "STATE" => "CA",
+        "ZIP" => "94558"
+      }
+      assert {:record, record} == DBF.get(context.db, 0)
+    end
+
     test "it errors when requesting too high of a record ID", context do
       assert {:error, :record_not_found} == DBF.get(context.db, 187)
     end
