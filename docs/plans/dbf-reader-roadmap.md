@@ -2,7 +2,7 @@
 
 - Status: Active
 - Last updated: 2026-08-22
-- Progress: Phases -1 through 2 complete; Phase 3 is in progress
+- Progress: Phases -1 through 3 complete; Phase 4 is next
 
 This is a living implementation roadmap. Durable architectural decisions are
 recorded separately under `docs/adr/`.
@@ -309,11 +309,14 @@ crashes or resource leaks.
       precision matters. Because existing callers receive floats, introduce any
       more exact representation through an opt-in mode before considering a
       future breaking default.
-- [ ] Correct binary numeric endianness and signedness per format.
+- [x] Keep binary numeric fields unsupported in legacy profiles rather than
+      applying unverified endianness or signedness. Visual FoxPro's documented
+      little-endian integer and currency decoders remain in Phase 4.
 - [x] Support current date values without bang functions and define behavior for
       invalid or blank values. Visual FoxPro timestamps remain in Phase 4.
-- [ ] Distinguish text memo, binary memo/general, character, and binary field
-      types.
+- [x] Distinguish supported character and textual DBT memo fields through
+      profile capabilities; keep binary memo/general and binary field kinds
+      unsupported until their owning Visual FoxPro profile lands.
 - [x] Map known language-driver IDs to documented code pages.
 - [x] Add a deliberate encoding option for missing or incorrect driver IDs.
 - [x] Decide among strict error, replacement, and raw-binary policies; do not

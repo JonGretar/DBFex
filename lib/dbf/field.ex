@@ -21,16 +21,12 @@ defmodule DBF.Field do
 
   @type text_decoder ::
           :character
-          | :variable_character
           | :float
           | :logical
           | {:numeric, DBF.numeric_policy()}
           | :memo
           | :date
-  @type decoder ::
-          {:text, text_decoder()}
-          | {:binary, :integer | :currency | :null_flags}
-          | {:unsupported, binary()}
+  @type decoder :: {:text, text_decoder()} | {:unsupported, binary()}
 
   @type t :: %__MODULE__{
           name: binary(),

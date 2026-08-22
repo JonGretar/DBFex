@@ -92,6 +92,16 @@ defmodule DBF.ValueDecodingTest do
     )
   end
 
+  test "legacy profiles do not decode unsupported binary or memo field kinds" do
+    with_value_table("I", 4, [<<1, 0, 0, 0>>], fn db ->
+      assert {:error, %DBF.DatabaseError{reason: :unsupported_field_type}} = DBF.get(db, 0)
+    end)
+
+    with_value_table("M", 10, ["         1"], fn db ->
+      assert {:error, %DBF.DatabaseError{reason: :unsupported_field_type}} = DBF.get(db, 0)
+    end)
+  end
+
   test "float fields distinguish blank, valid, and invalid values" do
     with_value_table("F", 5, ["     ", "  2.5", " 2x  "], fn db ->
       assert {:record, %{"VALUE" => nil}} = DBF.get(db, 0)

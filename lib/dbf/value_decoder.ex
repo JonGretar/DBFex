@@ -8,30 +8,27 @@ defmodule DBF.ValueDecoder do
   alias DBF.TextDecoder
 
   @spec compile(Field.t(), FormatProfile.t(), DBF.options()) :: Field.decoder()
-  def compile(%Field{type: "C"}, %FormatProfile{}, _options), do: {:text, :character}
-  def compile(%Field{type: "V"}, %FormatProfile{}, _options), do: {:text, :variable_character}
-  def compile(%Field{type: "F"}, %FormatProfile{}, _options), do: {:text, :float}
-  def compile(%Field{type: "I"}, %FormatProfile{}, _options), do: {:binary, :integer}
-  def compile(%Field{type: "Y"}, %FormatProfile{}, _options), do: {:binary, :currency}
-  def compile(%Field{type: "L"}, %FormatProfile{}, _options), do: {:text, :logical}
-
-  def compile(%Field{type: "N"}, %FormatProfile{}, options) do
-    {:text, {:numeric, Keyword.get(options, :numeric, :float)}}
+  def compile(%Field{type: type}, %FormatProfile{field_kinds: field_kinds}, options) do
+    case Map.fetch(field_kinds, type) do
+      {:ok, kind} -> compile_kind(kind, options)
+      :error -> {:unsupported, type}
+    end
   end
 
-  def compile(%Field{type: "M"}, %FormatProfile{}, _options), do: {:text, :memo}
-  def compile(%Field{type: "0"}, %FormatProfile{}, _options), do: {:binary, :null_flags}
-  def compile(%Field{type: "D"}, %FormatProfile{}, _options), do: {:text, :date}
-  def compile(%Field{type: type}, %FormatProfile{}, _options), do: {:unsupported, type}
+  defp compile_kind(:character, _options), do: {:text, :character}
+  defp compile_kind(:float, _options), do: {:text, :float}
+  defp compile_kind(:logical, _options), do: {:text, :logical}
+  defp compile_kind(:date, _options), do: {:text, :date}
+  defp compile_kind(:text_memo, _options), do: {:text, :memo}
+
+  defp compile_kind(:numeric, options) do
+    {:text, {:numeric, Keyword.get(options, :numeric, :float)}}
+  end
 
   @spec decode(DBF.Database.t(), Field.t(), binary()) :: term() | {:error, Error.t()}
   def decode(_db, _field, ""), do: nil
 
   def decode(db, %{decoder: {:text, :character}}, value) do
-    decode_text(db.text_decoder, value, :both)
-  end
-
-  def decode(db, %{decoder: {:text, :variable_character}}, value) do
     decode_text(db.text_decoder, value, :both)
   end
 
@@ -43,16 +40,6 @@ defmodule DBF.ValueDecoder do
       :error when trimmed == "" -> nil
       _invalid -> invalid_value("Illegal float value: #{inspect(value)}")
     end
-  end
-
-  def decode(_db, %{decoder: {:binary, :integer}}, <<value::signed-big-integer-32>>), do: value
-
-  def decode(
-        _db,
-        %{decoder: {:binary, :currency}, decimal: decimal},
-        <<value::signed-little-integer-64>>
-      ) do
-    value / :math.pow(10, decimal)
   end
 
   def decode(_db, %{decoder: {:text, :logical}}, value) do
@@ -113,7 +100,6 @@ defmodule DBF.ValueDecoder do
     end
   end
 
-  def decode(_db, %{decoder: {:binary, :null_flags}}, _value), do: nil
   def decode(_db, %{decoder: {:text, :date}}, "        "), do: nil
 
   def decode(_db, %{decoder: {:text, :date}}, value) do

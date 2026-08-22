@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Field decoder selection is now compiled with schema metadata, keeping textual and binary representations distinct before value decoding.
+- Field decoder selection is now compiled from profile capabilities with schema metadata, keeping textual and binary representations distinct before value decoding.
 - The minimum supported Elixir version is now 1.18.
 - The OTP application and Hex package names were corrected to `dbf_ex`.
 
@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Duplicate decoded field names now fail schema parsing instead of silently overwriting record values.
 - Legacy blank values now have documented per-type results; date, logical, float, and numeric parsing no longer uses exceptions for ordinary invalid input, and numeric suffix junk is no longer accepted as a partial value.
 - Field names, character values, and textual DBT memos now use one language-driver-aware text policy while binary and structural bytes remain untouched.
+- Legacy profiles no longer accidentally decode unsupported Visual FoxPro integer, currency, variable-width, or binary field kinds.
 - Record access now consistently rejects invalid indexes and returns contextual errors for short reads, malformed values, and unknown record markers; enumeration stops after emitting a record error.
 - dBASE III DBT memos now support multi-block values and reject malformed pointers, inconsistent headers, out-of-range blocks, and missing terminators.
 - dBASE IV DBT memos now honor declared block sizes and total lengths, support multi-block values, recognize field terminators, and reject invalid signatures, pointers, and truncated blocks.

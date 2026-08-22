@@ -45,6 +45,12 @@ During Phase 2:
 5. Defer separate value-decoder modules until Phase 3 defines blank, null,
    invalid, binary, numeric, and text semantics.
 
+During Phase 3, profiles also declare the evidenced field-kind capabilities for
+their record layout. Schema compilation turns those capabilities into value
+decoders. A field kind absent from the selected profile remains unsupported even
+if another planned format uses the same one-byte type code; this prevents legacy
+profiles from accidentally invoking unverified Visual FoxPro binary semantics.
+
 Do not define one large behavior for an entire format. These concerns vary
 independently. Plain internal modules with explicit function contracts are
 sufficient; strategy modules may be stored in profiles later if atom dispatch
