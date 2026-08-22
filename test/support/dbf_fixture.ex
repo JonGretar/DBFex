@@ -34,7 +34,8 @@ defmodule DBF.TestFixture do
     day = Keyword.get(options, :day, 1)
     record_count = Keyword.get(options, :record_count, 0)
     field_length = Keyword.get(options, :field_length, 1)
-    descriptor = legacy_descriptor("VALUE", "C", field_length)
+    field_type = Keyword.get(options, :field_type, "C")
+    descriptor = legacy_descriptor("VALUE", field_type, field_length)
     terminator = if Keyword.get(options, :terminator, true), do: <<0x0D>>, else: <<>>
     schema = descriptor <> terminator
     header_length = Keyword.get(options, :header_length, 32 + byte_size(schema))

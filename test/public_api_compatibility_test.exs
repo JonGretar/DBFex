@@ -102,9 +102,63 @@ defmodule DBF.PublicAPICompatibilityTest do
       assert is_map(last)
     end
 
-    test "an index at or above the physical count is rejected", %{db: db} do
-      assert {:error, :record_not_found} = DBF.get(db, 187)
-      assert {:error, :record_not_found} = DBF.get(db, 999)
+    test "invalid record indexes use one database error category", %{db: db} do
+      for index <- [-1, 0.5, "0", 187, 999] do
+        assert {:error,
+                %DBF.DatabaseError{
+                  reason: :invalid_record_index,
+                  context: %{record_number: ^index, record_count: 187}
+                }} = DBF.get(db, index)
+      end
+    end
+
+    test "a record truncated after opening returns an invalid-record error" do
+      binary = TestFixture.legacy_dbf(record_count: 1, records: " A")
+      path = TestFixture.write_temp!(binary)
+      on_exit(fn -> TestFixture.cleanup(path) end)
+
+      truncated_db = DBF.open!(path)
+      on_exit(fn -> DBF.close(truncated_db) end)
+      File.write!(path, binary_part(binary, 0, byte_size(binary) - 1))
+
+      assert {:error,
+              %DBF.DatabaseError{
+                reason: :invalid_record,
+                cause: :eof,
+                context: %{record_number: 0, actual: 1, expected: 2}
+              }} = DBF.get(truncated_db, 0)
+    end
+
+    test "malformed field values return contextual invalid-record errors" do
+      path =
+        TestFixture.legacy_dbf(field_type: "L", record_count: 1, records: " X")
+        |> TestFixture.write_temp!()
+
+      on_exit(fn -> TestFixture.cleanup(path) end)
+      invalid_db = DBF.open!(path)
+      on_exit(fn -> DBF.close(invalid_db) end)
+
+      assert {:error,
+              %DBF.DatabaseError{
+                reason: :invalid_record,
+                cause: {:field_decode_failed, _message},
+                context: %{record_number: 0, field_name: "VALUE", field_type: "L"}
+              }} = DBF.get(invalid_db, 0)
+    end
+
+    test "unknown record markers return an invalid-record error" do
+      path = TestFixture.with_record_marker!(@zipcodes, 0, "?")
+      on_exit(fn -> TestFixture.cleanup(path) end)
+
+      invalid_db = DBF.open!(path)
+      on_exit(fn -> DBF.close(invalid_db) end)
+
+      assert {:error,
+              %DBF.DatabaseError{
+                reason: :invalid_record,
+                cause: {:unknown_record_marker, ??},
+                context: %{record_number: 0}
+              }} = DBF.get(invalid_db, 0)
     end
 
     test "deleted records preserve their values and status", %{db: db} do
@@ -139,6 +193,33 @@ defmodule DBF.PublicAPICompatibilityTest do
 
       assert 187 = length(records)
       assert DBF.get(db, 0) == List.last(records)
+    end
+
+    test "a record error is emitted once as the final element" do
+      path = TestFixture.with_record_marker!(@zipcodes, 1, "?")
+      on_exit(fn -> TestFixture.cleanup(path) end)
+
+      invalid_db = DBF.open!(path)
+      on_exit(fn -> DBF.close(invalid_db) end)
+
+      assert [first, {:error, %DBF.DatabaseError{reason: :invalid_record}}] =
+               Enum.to_list(invalid_db)
+
+      assert first == DBF.get(invalid_db, 0)
+    end
+
+    test "suspending on a record error resumes directly to completion" do
+      path = TestFixture.with_record_marker!(@zipcodes, 0, "?")
+      on_exit(fn -> TestFixture.cleanup(path) end)
+
+      invalid_db = DBF.open!(path)
+      on_exit(fn -> DBF.close(invalid_db) end)
+      reducer = fn record, records -> {:suspend, [record | records]} end
+
+      assert {:suspended, [{:error, %DBF.DatabaseError{reason: :invalid_record}}], continuation} =
+               Enumerable.reduce(invalid_db, {:cont, []}, reducer)
+
+      assert {:done, []} = continuation.({:cont, []})
     end
 
     test "halt returns without reading a record", %{db: db} do

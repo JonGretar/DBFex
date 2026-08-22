@@ -38,7 +38,8 @@ defmodule ZipcodeTest do
     end
 
     test "it errors when requesting too high of a record ID", context do
-      assert {:error, :record_not_found} == DBF.get(context.db, 187)
+      assert {:error, %DBF.DatabaseError{reason: :invalid_record_index}} =
+               DBF.get(context.db, 187)
     end
 
     test "then the number of records should match the header", context do
