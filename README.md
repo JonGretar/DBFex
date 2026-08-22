@@ -6,32 +6,33 @@ At the moment it only supports read.
 
 ## Usage
 
-Open a file with open/1 or open/2
+For callback-scoped reads, use `DBF.with_open/2,3`. It closes the DBF and any
+memo resource after the callback returns or raises:
 
 ```elixir
-{:ok, db} = DBF.open("test/dbf_files/bayarea_zipcodes.dbf")
+records =
+  DBF.with_open("test/dbf_files/bayarea_zipcodes.dbf", fn db ->
+    Enum.to_list(db)
+  end)
 ```
 
-The resulting DB follows the enumerable protocol, so you can use all the functions in the Enum module.
+An open database implements `Enumerable`. Each element is a `{status, values}`
+tuple whose status is `:record` or `:deleted_record`.
 
-So to get all the records of a database you can do:
+Use `DBF.get/2` for a specific zero-based record index:
 
 ```elixir
-db |> Enum.to_list()
+DBF.with_open("test/dbf_files/bayarea_zipcodes.dbf", fn db ->
+  case DBF.get(db, 2) do
+    {:record, row} -> IO.inspect(row)
+    {:deleted_record, row} -> IO.inspect(row)
+    {:error, error} -> IO.warn(Exception.message(error))
+  end
+end)
 ```
 
-The result is a `{status, %{...}}` tuple, where the record status is either
-`:record` or `:deleted_record`.
-
-You can get specific rows by using the `DBF.get/2` function.
-
-```elixir
-case DBF.get(db, 2) do
-  {:record, row} -> IO.inspect(row)
-  {:deleted_record, row} -> IO.inspect(row)
-  {:error, error} -> IO.warn(Exception.message(error))
-end
-```
+For streaming, suspended enumeration, or longer-lived access, use
+`DBF.open/1,2` and pair every successful open with `DBF.close/1`.
 
 ## Format compatibility
 
@@ -58,6 +59,4 @@ checked-in fixtures. A recognized version byte alone does not imply support.
 | NDX/MDX/CDX/DCX index reading       | —                              | Not planned | Tracked separately from table reading.                                                                                  |
 
 See `test/support/fixture_manifest.ex` for per-fixture provenance, encoding,
-redistribution status, expected-value source, and normative references. The
-longer-term implementation sequence is tracked in
-[`docs/plans/dbf-reader-roadmap.md`](docs/plans/dbf-reader-roadmap.md).
+redistribution status, expected-value source, and normative references.

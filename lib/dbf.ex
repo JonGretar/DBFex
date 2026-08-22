@@ -26,6 +26,7 @@ defmodule DBF do
   @type record_result() :: {record_status(), record()} | error_result()
   @type open_result() :: {:ok, Database.t()} | error_result()
   @type close_result() :: :ok | error_result()
+  @type with_open_result(result) :: result | error_result()
 
   @default_options [
     memo_file: nil
@@ -35,35 +36,21 @@ defmodule DBF do
   @moduledoc """
   Read DBASE files in Elixir.
 
-  At the moment it only supports read.
-
-  ## Usage
-
-  Open a file with open/1 or open/2
+  DBFex currently provides read-only access. For callback-scoped reads, prefer
+  `with_open/2` so resources are closed automatically:
 
   ```elixir
-    {:ok, db} = DBF.open("test/dbf_files/bayarea_zipcodes.dbf")
+  DBF.with_open("test/dbf_files/bayarea_zipcodes.dbf", fn db ->
+    Enum.to_list(db)
+  end)
   ```
 
-  The resulting DB follows the enumerable protocol, so you can use all the functions in the Enum module.
+  An open database implements `Enumerable`. Each record is returned as
+  `{:record, values}`, `{:deleted_record, values}`, or an error tuple. Use
+  `get/2` for a specific zero-based record index.
 
-  So to get all the records of a database you can do:
-
-  ```elixir
-    db |> Enum.to_list()
-  ```
-
-  The result will be a tuple ´{status, %{...}}´ with the record status being either :record or :deleted_record.
-
-  You can get specific rows by using the `DBF.get/2` function.
-
-  ```elixir
-    case DBF.get(db, 2) do
-      {:record, row} -> IO.inspect row
-      {:deleted_record, row} -> IO.inspect row
-      {:error, _} -> IO.puts "OMG"
-    end
-  ```
+  Use `open/1,2` and `close/1` directly for streaming, suspended enumeration, or
+  longer-lived access.
   """
 
   @doc """
@@ -76,6 +63,31 @@ defmodule DBF do
          {:ok, db} <- Database.open_database(db),
          {:ok, db} <- open_memo_file(db) do
       Field.parse_fields(db)
+    end
+  end
+
+  @doc """
+  Opens a database for the duration of a callback and always attempts to close it.
+
+  The callback result is returned unchanged. If opening or closing fails, an error
+  tuple is returned. If the callback raises, throws, or exits, the database is
+  closed before the original failure is propagated.
+
+  The callback must not close the database itself.
+  """
+  @spec with_open(String.t(), (Database.t() -> result)) :: with_open_result(result)
+        when result: term()
+  @spec with_open(String.t(), options(), (Database.t() -> result)) :: with_open_result(result)
+        when result: term()
+  def with_open(filename, fun) when is_binary(filename) and is_function(fun, 1) do
+    with_open(filename, [], fun)
+  end
+
+  def with_open(filename, options, fun)
+      when is_binary(filename) and is_function(fun, 1) do
+    case open(filename, options) do
+      {:ok, db} -> invoke_and_close(db, fun)
+      {:error, _error} = error -> error
     end
   end
 
@@ -172,6 +184,26 @@ defmodule DBF do
       Keyword.get(@default_options, key)
     end
   end
+
+  defp invoke_and_close(db, fun) do
+    result = fun.(db)
+
+    db
+    |> close()
+    |> finish_with_close(result)
+  catch
+    kind, reason ->
+      stacktrace = __STACKTRACE__
+      _ = close(db)
+      :erlang.raise(kind, reason, stacktrace)
+  end
+
+  # Current valid file handles infer `:ok`; keep the error branch for the public
+  # close contract and the Phase 1 resource implementation.
+  @dialyzer {:nowarn_function, finish_with_close: 2}
+  @spec finish_with_close(close_result(), result) :: with_open_result(result) when result: term()
+  defp finish_with_close(:ok, result), do: result
+  defp finish_with_close({:error, _reason} = error, _result), do: error
 
   defp create_database_struct(filename, options) do
     with {:ok, file} <- File.open(filename, [:read, :binary]),

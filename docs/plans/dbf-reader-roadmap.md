@@ -209,6 +209,20 @@ semantics, and ownership rules are explicit enough to write unambiguous tests.
 without being frozen, fixture evidence is traceable, and support claims are
 honest.
 
+### API checkpoint before Phase 1
+
+- [x] Preserve the existing `open`, `open!`, `get`, `close`, tagged-record, and
+      `Enumerable` interfaces.
+- [x] Add `DBF.with_open/2,3` as the preferred callback-scoped API with
+      deterministic cleanup.
+- [x] Keep an open `DBF.Database` opaque and reserve public metadata for explicit
+      future `metadata/1` or `schema/1` functions justified by caller needs.
+- [x] Keep writing and editing behind a separate future abstraction rather than
+      adding read-write mode or mutation to `DBF.Database`.
+
+**Exit criterion:** Phase 1 can replace resource internals without reopening the
+public reader API or prematurely designing a writer.
+
 ### Phase 1 — Build failure-safe parsing foundations
 
 - [ ] Validate options before opening any file.

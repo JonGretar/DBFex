@@ -17,7 +17,7 @@ the parser is made safe and additional xBase variants are added.
 The following interfaces are **stable public** within the pre-1.0 compatibility
 perimeter:
 
-- `DBF.open/1,2` and `DBF.open!/1,2`;
+- `DBF.open/1,2`, `DBF.open!/1,2`, and `DBF.with_open/2,3`;
 - `DBF.get/2` and `DBF.close/1`;
 - `Enumerable` support for values returned by `DBF.open/1,2`;
 - record results shaped as `{:record, map}`, `{:deleted_record, map}`, or
@@ -31,7 +31,9 @@ its fields. Metadata intended to become stable will be exposed through explicit
 functions in a later change.
 
 `DBF.has_memo_file?/1` is also observable but intentionally unstable until an
-intentional metadata API is designed.
+intentional metadata API is designed. Future metadata is exposed through explicit
+functions such as `DBF.metadata/1` or `DBF.schema/1`, if concrete caller needs
+justify them; direct database fields do not become the metadata API.
 
 The following currently callable parsing and helper functions are **internal** and
 may be changed, moved, or made private without compatibility measures:
@@ -54,6 +56,12 @@ A format that requires a memo companion fails during opening when no usable memo
 file is found. Deferred failure while reading a memo value is not the default.
 
 `DBF.open!/1,2` returns the database or raises only `DBF.DatabaseError`.
+
+`DBF.with_open/2,3` is the preferred API for callback-scoped use. It returns the
+callback result unchanged after a successful close. An open or close failure is
+returned as a database error. If the callback raises, throws, or exits, DBFex
+attempts to close all resources before propagating the original failure. The
+callback does not own the database and must not close it.
 
 ### Errors
 
@@ -115,6 +123,10 @@ second real source is accepted.
 
 Writing DBF tables and reading index families such as NDX, MDX, CDX, and DCX
 remain separate future plans. They are not requirements of the reader refactor.
+Future writing or editing uses a separate writer/editor abstraction rather than a
+read-write mode or mutation functions on `DBF.Database`. The reader still
+preserves ordered schema, flags, encoding metadata, raw version information, and
+format-profile boundaries that a future writer could reuse.
 
 ## Consequences
 

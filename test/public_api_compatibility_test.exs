@@ -24,6 +24,43 @@ defmodule DBF.PublicAPICompatibilityTest do
       assert :ok = DBF.close(db2)
     end
 
+    test "with_open/2 returns the callback result and closes the database" do
+      device = DBF.with_open(@zipcodes, fn db -> Map.fetch!(db, :device) end)
+
+      assert {:error, _reason} = :file.pread(device, 0, 1)
+    end
+
+    test "with_open/3 closes both the table and memo resources" do
+      {table_device, memo_device} =
+        DBF.with_open(@dbase3_memo, [memo_file: @dbase3_memo_file], fn db ->
+          {Map.fetch!(db, :device), db |> Map.fetch!(:memo_file) |> Map.fetch!(:device)}
+        end)
+
+      assert {:error, _table_reason} = :file.pread(table_device, 0, 1)
+      assert {:error, _memo_reason} = :file.pread(memo_device, 0, 1)
+    end
+
+    test "with_open does not invoke the callback when opening fails" do
+      assert {:error, %DBF.DatabaseError{reason: :unsupported_version}} =
+               DBF.with_open("test/dbf_files/dbase_f5.dbf", fn _db ->
+                 flunk("the callback must not run")
+               end)
+    end
+
+    test "with_open closes the database before propagating a callback exception" do
+      parent = self()
+
+      assert_raise RuntimeError, "callback failed", fn ->
+        DBF.with_open(@zipcodes, fn db ->
+          send(parent, {:device, Map.fetch!(db, :device)})
+          raise "callback failed"
+        end)
+      end
+
+      assert_receive {:device, device}
+      assert {:error, _reason} = :file.pread(device, 0, 1)
+    end
+
     test "an explicit memo path is accepted" do
       assert {:ok, db} = DBF.open(@dbase3_memo, memo_file: @dbase3_memo_file)
       assert DBF.has_memo_file?(db)

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `DBF.with_open/2,3` for callback-scoped reads with automatic resource cleanup.
 - Documented evidence-based support levels for the available DBF variants.
 
 ### Changed
