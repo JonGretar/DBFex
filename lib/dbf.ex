@@ -46,27 +46,88 @@ defmodule DBF do
                    encoding_errors: :raw
 
   @moduledoc """
-  Read DBASE files in Elixir.
+  Read FoxBase and dBASE DBF files.
 
-  DBFex currently provides read-only access. For callback-scoped reads, prefer
-  `with_open/2` so resources are closed automatically:
+  DBFex provides read-only, positional access to records. For ordinary reads,
+  prefer `with_open/2` or `with_open/3`; it owns the database resource for the
+  duration of the callback and closes it automatically:
 
   ```elixir
-  DBF.with_open("test/dbf_files/bayarea_zipcodes.dbf", fn db ->
+  DBF.with_open("customers.dbf", fn db ->
     Enum.to_list(db)
   end)
   ```
 
-  An open database implements `Enumerable`. Each record is returned as
-  `{:record, values}`, `{:deleted_record, values}`, or an error tuple. Use
-  `get/2` for a specific zero-based record index.
+  ## Records and enumeration
 
-  Use `open/1,2` and `close/1` directly for streaming, suspended enumeration, or
-  longer-lived access.
+  An open `DBF.Database` implements `Enumerable`. Elements retain the physical
+  record status and have one of these forms:
+
+  ```elixir
+  {:record, %{"NAME" => "Ada"}}
+  {:deleted_record, %{"NAME" => "Grace"}}
+  {:error, %DBF.DatabaseError{}}
+  ```
+
+  Enumeration includes active and deleted records in file order. If decoding a
+  record fails, the error tuple is emitted as the final element. Use `get/2` for
+  zero-based random access to a single physical record.
+
+  ## Options
+
+  The same options are accepted by `open/2`, `open!/2`, and `with_open/3`:
+
+  * `:memo_file` - an explicit DBT path, or `nil` for automatic companion
+    discovery. Defaults to `nil`.
+  * `:numeric` - `:float` for compatible float results, or `:exact` for integers
+    and `Decimal` values. Defaults to `:float`.
+  * `:encoding` - `:auto`, `:raw`, `:windows_1251`, or `:windows_1252`. Defaults
+    to `:auto`.
+  * `:encoding_errors` - `:strict`, `:replace`, or `:raw`. Defaults to `:raw`.
+
+  For example, to read exact numeric values and require valid Windows-1252 text:
+
+  ```elixir
+  DBF.with_open(
+    "customers.dbf",
+    [numeric: :exact, encoding: :windows_1252, encoding_errors: :strict],
+    fn db -> DBF.get(db, 0) end
+  )
+  ```
+
+  ## Resource ownership and errors
+
+  Use `open/1,2` with `close/1` when the database must outlive a callback, such
+  as for suspended enumeration. Every successful open must have a corresponding
+  close. `close/1` is idempotent.
+
+  Non-bang operations return `{:error, %DBF.DatabaseError{}}`. `open!/1,2`
+  raises that same exception type when opening fails.
   """
 
   @doc """
-  Opens a DBF database file.
+  Opens a DBF file and returns an opaque database value.
+
+  The caller owns the returned resource and must eventually call `close/1`.
+  Prefer `with_open/2,3` when callback-scoped access is sufficient.
+
+  Options are described in the module documentation.
+
+  ## Example
+
+  ```elixir
+  case DBF.open("customers.dbf", numeric: :exact) do
+    {:ok, db} ->
+      try do
+        DBF.get(db, 0)
+      after
+        DBF.close(db)
+      end
+
+    {:error, error} ->
+      {:error, Exception.message(error)}
+  end
+  ```
   """
   @spec open(String.t()) :: open_result()
   @spec open(String.t(), options()) :: open_result()
@@ -87,11 +148,34 @@ defmodule DBF do
   @doc """
   Opens a database for the duration of a callback and always attempts to close it.
 
-  The callback result is returned unchanged. If opening or closing fails, an error
-  tuple is returned. If the callback raises, throws, or exits, the database is
-  closed before the original failure is propagated.
+  This is the preferred lifecycle for complete reads. The callback result is
+  returned unchanged. If opening or closing fails, an error tuple is returned.
+  If the callback raises, throws, or exits, DBFex closes the resources before
+  propagating the original failure.
 
-  The callback must not close the database itself.
+  The callback receives an enumerable `DBF.Database` and must not close it.
+
+  ## Examples
+
+  Read every physical record:
+
+  ```elixir
+  DBF.with_open("customers.dbf", fn db ->
+    Enum.to_list(db)
+  end)
+  ```
+
+  Pass decoding options and keep only active rows:
+
+  ```elixir
+  DBF.with_open("customers.dbf", [numeric: :exact], fn db ->
+    Enum.flat_map(db, fn
+      {:record, row} -> [row]
+      {:deleted_record, _row} -> []
+      {:error, error} -> raise error
+    end)
+  end)
+  ```
   """
   @spec with_open(String.t(), (Database.t() -> result)) :: with_open_result(result)
         when result: term()
@@ -110,7 +194,20 @@ defmodule DBF do
   end
 
   @doc """
-  Same as `open/2`, but raises `DBF.DatabaseError` on failure.
+  Opens a DBF file, raising `DBF.DatabaseError` on failure.
+
+  Like `open/2`, the caller owns the returned resource and must call `close/1`.
+  This is useful when failure should abort the current operation:
+
+  ```elixir
+  db = DBF.open!("customers.dbf")
+
+  try do
+    Enum.take(db, 10)
+  after
+    DBF.close(db)
+  end
+  ```
   """
   @spec open!(String.t()) :: Database.t()
   @spec open!(String.t(), options()) :: Database.t()
@@ -122,9 +219,16 @@ defmodule DBF do
   end
 
   @doc """
-  Closes all resources owned by an open database.
+  Closes the DBF and memo resources owned by an open database.
 
-  Closing the same database more than once is safe.
+  Closing the same database more than once is safe. After closing, the database
+  must not be used for random access or resumed enumeration.
+
+  ```elixir
+  {:ok, db} = DBF.open("customers.dbf")
+  :ok = DBF.close(db)
+  :ok = DBF.close(db)
+  ```
   """
   @spec close(Database.t()) :: close_result()
   def close(%Database{resource: resource}) do
@@ -136,6 +240,19 @@ defmodule DBF do
 
   @doc """
   Gets a record by its zero-based physical index.
+
+  Active and deleted records retain their status. Invalid indexes return an
+  `:invalid_record_index` database error.
+
+  ```elixir
+  DBF.with_open("customers.dbf", fn db ->
+    case DBF.get(db, 2) do
+      {:record, row} -> {:ok, row}
+      {:deleted_record, row} -> {:deleted, row}
+      {:error, error} -> {:error, error}
+    end
+  end)
+  ```
   """
   @spec get(Database.t(), term()) :: record_result()
   def get(%Database{number_of_records: total}, record_number)

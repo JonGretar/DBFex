@@ -1,70 +1,149 @@
 # DBF
 
-Read DBASE files in Elixir.
+Read FoxBase and dBASE DBF files in Elixir. DBFex is read-only and supports
+random access, enumeration, DBT memo files, legacy text encodings, and optional
+exact numeric values.
 
-At the moment it only supports read.
+## Installation
 
-## Usage
+Add `dbf_ex` to your dependencies:
 
-For callback-scoped reads, use `DBF.with_open/2,3`. It closes the DBF and any
-memo resource after the callback returns or raises:
+```elixir
+def deps do
+  [
+    {:dbf_ex, "~> 0.2.0"}
+  ]
+end
+```
+
+## Quick start
+
+For most reads, use `DBF.with_open/2,3`. It closes the DBF and any memo resource
+when the callback returns or raises:
 
 ```elixir
 records =
-  DBF.with_open("test/dbf_files/bayarea_zipcodes.dbf", fn db ->
+  DBF.with_open("customers.dbf", fn db ->
     Enum.to_list(db)
   end)
 ```
 
-An open database implements `Enumerable`. Each element is a `{status, values}`
-tuple whose status is `:record` or `:deleted_record`.
-
-Use `DBF.get/2` for a specific zero-based record index:
+Each element retains its physical record status:
 
 ```elixir
-DBF.with_open("test/dbf_files/bayarea_zipcodes.dbf", fn db ->
+{:record, %{"NAME" => "Ada"}}
+{:deleted_record, %{"NAME" => "Grace"}}
+{:error, %DBF.DatabaseError{}}
+```
+
+### Random access with `DBF.get/2`
+
+Record indexes are zero-based:
+
+```elixir
+DBF.with_open("customers.dbf", fn db ->
   case DBF.get(db, 2) do
-    {:record, row} -> IO.inspect(row)
-    {:deleted_record, row} -> IO.inspect(row)
-    {:error, error} -> IO.warn(Exception.message(error))
+    {:record, row} -> {:ok, row}
+    {:deleted_record, row} -> {:deleted, row}
+    {:error, error} -> {:error, Exception.message(error)}
   end
 end)
 ```
 
-For streaming, suspended enumeration, or longer-lived access, use
-`DBF.open/1,2` and pair every successful open with `DBF.close/1`.
+### Enumeration and streams
+
+An open database implements `Enumerable`, so it works with `Enum` and `Stream`:
+
+```elixir
+DBF.with_open("customers.dbf", fn db ->
+  Enum.each(db, fn
+    {:record, row} -> IO.inspect(row)
+    {:deleted_record, row} -> IO.inspect(row, label: "deleted")
+    {:error, error} -> IO.warn(Exception.message(error))
+  end)
+end)
+```
+
+Enumeration includes active and deleted records in file order. If a record
+cannot be decoded, its error tuple is emitted as the final element.
+
+### Longer-lived access
+
+Use `DBF.open/1,2` directly for suspended enumeration or when the database must
+outlive a callback. Pair every successful open with `DBF.close/1`:
+
+```elixir
+case DBF.open("customers.dbf") do
+  {:ok, db} ->
+    try do
+      Enum.take(db, 20)
+    after
+      DBF.close(db)
+    end
+
+  {:error, error} ->
+    {:error, Exception.message(error)}
+end
+```
+
+`DBF.open!/1,2` is also available when opening failure should raise a
+`DBF.DatabaseError`. Closing is idempotent.
+
+## Decoding options
+
+Options can be passed to `DBF.open/2`, `DBF.open!/2`, and `DBF.with_open/3`:
+
+| Option             | Values                                               | Default  |
+| ------------------ | ---------------------------------------------------- | -------- |
+| `:memo_file`       | DBT path or `nil` for automatic companion discovery  | `nil`    |
+| `:numeric`         | `:float` or `:exact`                                 | `:float` |
+| `:encoding`        | `:auto`, `:raw`, `:windows_1251`, or `:windows_1252` | `:auto`  |
+| `:encoding_errors` | `:strict`, `:replace`, or `:raw`                     | `:raw`   |
 
 ### Exact numeric values
 
-Numeric fields remain floats by default for compatibility. Opt into exact values
-to receive integers for scale-zero fields and `Decimal` values for positive
-scales:
+Numeric fields remain floats by default for compatibility. With
+`numeric: :exact`, scale-zero values become integers and scaled values become
+`Decimal` values:
 
 ```elixir
-DBF.with_open("table.dbf", [numeric: :exact], fn db ->
+DBF.with_open("orders.dbf", [numeric: :exact], fn db ->
   DBF.get(db, 0)
 end)
 ```
 
-Malformed and blank numeric fields remain `nil` under this value policy.
+Malformed and blank numeric fields remain `nil` under this policy.
 
 ### Text encoding
 
-Known language drivers for Windows-1251 and Windows-1252 are decoded to UTF-8.
-Missing or unknown drivers preserve raw bytes by default instead of guessing:
+Known Windows-1251 and Windows-1252 language drivers are decoded to UTF-8.
+Missing or unknown drivers preserve raw bytes by default instead of guessing.
+A caller override can handle missing or incorrect metadata:
 
 ```elixir
 DBF.with_open(
-  "table.dbf",
+  "customers.dbf",
   [encoding: :windows_1251, encoding_errors: :strict],
   fn db -> Enum.to_list(db) end
 )
 ```
 
-`encoding` accepts `:auto`, `:raw`, `:windows_1251`, or `:windows_1252`.
-`encoding_errors` accepts `:strict`, `:replace`, or `:raw`. The defaults are
-`:auto` and `:raw`. The selected policy applies consistently to field names,
-character values, and textual DBT memos; binary values are not decoded as text.
+The selected policy applies to field names, character values, and textual DBT
+memos. Binary and structural values are not decoded as text.
+
+## Error handling
+
+Non-bang operations return `{:error, %DBF.DatabaseError{}}`. Errors include a
+stable broad `reason` and may carry useful context such as filename, record
+number, field name/type, byte offset, or format version:
+
+```elixir
+case DBF.open("customers.dbf") do
+  {:ok, db} -> DBF.close(db)
+  {:error, %DBF.DatabaseError{reason: reason} = error} ->
+    IO.warn("#{reason}: #{Exception.message(error)}")
+end
+```
 
 ## Format compatibility
 
