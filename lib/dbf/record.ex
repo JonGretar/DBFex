@@ -109,11 +109,18 @@ defmodule DBF.Record do
   defp read_field(db, %{type: "M"}, value) do
     new_value = String.trim(value)
 
-    if new_value == "" do
-      nil
-    else
-      block = String.to_integer(new_value)
-      Memo.get_block(db.resource, db.memo_file, block)
+    case Integer.parse(new_value) do
+      {_block, rest} when rest != "" ->
+        {:error, Error.new(:invalid_memo, :invalid_memo_pointer, %{raw_pointer: new_value})}
+
+      {block, ""} ->
+        Memo.get_block(db.resource, db.memo_file, block)
+
+      :error when new_value == "" ->
+        nil
+
+      :error ->
+        {:error, Error.new(:invalid_memo, :invalid_memo_pointer, %{raw_pointer: new_value})}
     end
   end
 

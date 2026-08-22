@@ -151,7 +151,7 @@ defmodule DBF.FixtureManifest do
       exercise: {:open, %{records: 67, fields: 15}},
       expected_values: {:yaml_sidecars, [0, 9]},
       normative_sources: [:dbase_iii_iv, :older_xbase_secondary],
-      notes: ["Record 0 YAML contains a longer memo than the current one-block decoder returns."]
+      notes: ["Record 0 exercises a DBT III memo spanning two 512-byte blocks."]
     },
     %{
       id: :dbase_iii_missing_memo,
