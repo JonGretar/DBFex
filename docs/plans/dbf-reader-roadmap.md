@@ -268,22 +268,22 @@ copying the full reader into `DBase3`, `DBase4`, or `VisualFoxPro` implementatio
 See [`ADR 0003`](../adr/0003-compose-format-variants-by-layout.md). The first two
 architectural slices are:
 
-- [ ] Introduce `DBF.Schema` to own descriptor parsing, validation, duplicate-name
+- [x] Introduce `DBF.Schema` to own descriptor parsing, validation, duplicate-name
       policy, and compiled record offsets. Keep `DBF.Field` as metadata for one
       field.
 - [ ] Split materially different memo algorithms into `DBF.Memo.DBT3` and
       `DBF.Memo.DBT4` behind the profile-driven `DBF.Memo` facade. Use plain
       internal modules rather than a whole-format behavior.
-- [ ] Reject negative, non-integer, and out-of-range record indexes consistently.
-- [ ] Handle short reads, truncated records, EOF markers, and unknown record
+- [x] Reject negative, non-integer, and out-of-range record indexes consistently.
+- [x] Handle short reads, truncated records, EOF markers, and unknown record
       markers according to the Phase -1 contract.
-- [ ] Remove `Database.position`; Enumerable begins at zero and carries its
+- [x] Remove `Database.position`; Enumerable begins at zero and carries its
       cursor only in the reducer continuation.
-- [ ] Ensure `DBF.get/2` and enumeration produce the same record status and error
+- [x] Ensure `DBF.get/2` and enumeration produce the same record status and error
       shape, including halt and suspension behavior.
-- [ ] Compile validated field offsets once during opening so record reads cannot
+- [x] Compile validated field offsets once during opening so record reads cannot
       drift from the declared record width.
-- [ ] Implement the chosen duplicate-field-name policy in `DBF.Schema`.
+- [x] Implement the chosen duplicate-field-name policy in `DBF.Schema`.
 - [ ] Correct DBT behavior separately in `DBF.Memo.DBT3` and `DBF.Memo.DBT4`,
       including termination, block sizing, pointers, and multi-block values.
 - [ ] Implement the chosen missing-memo policy and test missing, empty,

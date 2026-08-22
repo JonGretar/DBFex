@@ -28,7 +28,7 @@ defmodule DBF.Database do
           filename: String.t(),
           memo_file: term(),
           profile: term(),
-          schema: DBF.Schema.t(),
+          schema: term(),
           version: byte(),
           options: DBF.options(),
           last_updated: Date.t(),

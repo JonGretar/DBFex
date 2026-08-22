@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Opening now validates options before file access and returns contextual errors for malformed or truncated structures and missing required memos.
 - Table and memo resources are acquired transactionally, cleaned up after failed opens, and closed idempotently.
 - Corrected public type specifications for database errors, memo handles, and memo-file opening results.
+- Duplicate decoded field names now fail schema parsing instead of silently overwriting record values.
+- Record access now consistently rejects invalid indexes and returns contextual errors for short reads, malformed values, and unknown record markers; enumeration stops after emitting a record error.
 
 ## [0.1.0] - 2024-03-27
 
