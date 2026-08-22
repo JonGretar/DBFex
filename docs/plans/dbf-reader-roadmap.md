@@ -303,15 +303,15 @@ crashes or resource leaks.
       encoding, or other `String` operations.
 - [x] Compile decoder choices once at open time rather than branching on field
       type for every value.
-- [ ] Define blank versus null behavior for every supported field type and
-      variant.
+- [x] Define blank versus null behavior for every supported field type and
+      variant. See [ADR 0004](../adr/0004-preserve-compatible-legacy-value-defaults.md).
 - [ ] Decode `N` as an integer when scale is zero and as an exact decimal when
       precision matters. Because existing callers receive floats, introduce any
       more exact representation through an opt-in mode before considering a
       future breaking default.
 - [ ] Correct binary numeric endianness and signedness per format.
-- [ ] Support date/time values without bang functions and define behavior for
-      invalid or blank values.
+- [x] Support current date values without bang functions and define behavior for
+      invalid or blank values. Visual FoxPro timestamps remain in Phase 4.
 - [ ] Distinguish text memo, binary memo/general, character, and binary field
       types.
 - [ ] Map known language-driver IDs to documented code pages.

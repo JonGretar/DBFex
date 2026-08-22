@@ -19,6 +19,11 @@ defmodule DBF.Field do
     :reserved
   ]
 
+  @type decoder ::
+          {:text, :character | :variable_character | :float | :logical | :numeric | :memo | :date}
+          | {:binary, :integer | :currency | :null_flags}
+          | {:unsupported, binary()}
+
   @type t :: %__MODULE__{
           name: binary(),
           type: binary(),
@@ -30,7 +35,7 @@ defmodule DBF.Field do
           set_fields_flag: byte() | nil,
           descriptor_offset: non_neg_integer(),
           record_offset: pos_integer(),
-          decoder: DBF.ValueDecoder.decoder(),
+          decoder: decoder(),
           raw_descriptor: binary(),
           reserved: binary()
         }

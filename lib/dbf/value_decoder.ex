@@ -6,22 +6,7 @@ defmodule DBF.ValueDecoder do
   alias DBF.FormatProfile
   alias DBF.Memo
 
-  @type representation :: :text | :binary
-  @type decoder ::
-          {representation(),
-           :character
-           | :variable_character
-           | :float
-           | :integer
-           | :currency
-           | :logical
-           | :numeric
-           | :memo
-           | :null_flags
-           | :date}
-          | {:unsupported, binary()}
-
-  @spec compile(Field.t(), FormatProfile.t()) :: decoder()
+  @spec compile(Field.t(), FormatProfile.t()) :: Field.decoder()
   def compile(%Field{type: "C"}, %FormatProfile{}), do: {:text, :character}
   def compile(%Field{type: "V"}, %FormatProfile{}), do: {:text, :variable_character}
   def compile(%Field{type: "F"}, %FormatProfile{}), do: {:text, :float}
@@ -41,9 +26,12 @@ defmodule DBF.ValueDecoder do
   def decode(_db, %{decoder: {:text, :variable_character}}, value), do: String.trim(value)
 
   def decode(_db, %{decoder: {:text, :float}}, value) do
-    case String.trim(value) do
-      "" -> nil
-      new_value -> String.to_float(new_value)
+    trimmed = String.trim(value)
+
+    case Float.parse(trimmed) do
+      {number, ""} -> number
+      :error when trimmed == "" -> nil
+      _invalid -> invalid_value("Illegal float value: #{inspect(value)}")
     end
   end
 
@@ -62,14 +50,14 @@ defmodule DBF.ValueDecoder do
       logical when logical in ["Y", "y", "T", "t"] -> true
       logical when logical in ["N", "n", "F", "f"] -> false
       logical when logical in ["?", " "] -> nil
-      other -> raise "Illegal logical value: #{other}"
+      other -> invalid_value("Illegal logical value: #{other}")
     end
   end
 
   def decode(_db, %{decoder: {:text, :numeric}}, value) do
     case value |> String.trim() |> Float.parse() do
-      {number, _} -> number
-      :error -> nil
+      {number, ""} -> number
+      _invalid -> nil
     end
   end
 
@@ -94,15 +82,18 @@ defmodule DBF.ValueDecoder do
   def decode(_db, %{decoder: {:binary, :null_flags}}, _value), do: nil
   def decode(_db, %{decoder: {:text, :date}}, "        "), do: nil
 
-  def decode(
-        _db,
-        %{decoder: {:text, :date}},
-        <<year::binary-size(4), month::binary-size(2), day::binary-size(2)>>
-      ) do
-    Date.from_iso8601!("#{year}-#{month}-#{day}")
-  end
+  def decode(_db, %{decoder: {:text, :date}}, value) do
+    case value do
+      <<year::binary-size(4), month::binary-size(2), day::binary-size(2)>> ->
+        case Date.from_iso8601("#{year}-#{month}-#{day}") do
+          {:ok, date} -> date
+          {:error, _reason} -> invalid_value("Invalid date value: #{inspect(value)}")
+        end
 
-  def decode(_db, %{decoder: {:text, :date}}, _value), do: throw("Invalid Date")
+      _invalid ->
+        invalid_value("Invalid date value: #{inspect(value)}")
+    end
+  end
 
   def decode(_db, %{decoder: {:unsupported, _type}}, _value) do
     {:error, Error.new(:unsupported_field_type, nil, %{})}
@@ -110,5 +101,9 @@ defmodule DBF.ValueDecoder do
 
   def decode(_db, _field, _value) do
     {:error, Error.new(:unsupported_field_type, nil, %{})}
+  end
+
+  defp invalid_value(message) do
+    {:error, Error.new(:invalid_record, {:field_decode_failed, message}, %{})}
   end
 end

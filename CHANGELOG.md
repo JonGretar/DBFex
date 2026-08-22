@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Table and memo resources are acquired transactionally, cleaned up after failed opens, and closed idempotently.
 - Corrected public type specifications for database errors, memo handles, and memo-file opening results.
 - Duplicate decoded field names now fail schema parsing instead of silently overwriting record values.
+- Legacy blank values now have documented per-type results; date, logical, float, and numeric parsing no longer uses exceptions for ordinary invalid input, and numeric suffix junk is no longer accepted as a partial value.
 - Record access now consistently rejects invalid indexes and returns contextual errors for short reads, malformed values, and unknown record markers; enumeration stops after emitting a record error.
 - dBASE III DBT memos now support multi-block values and reject malformed pointers, inconsistent headers, out-of-range blocks, and missing terminators.
 - dBASE IV DBT memos now honor declared block sizes and total lengths, support multi-block values, recognize field terminators, and reject invalid signatures, pointers, and truncated blocks.
