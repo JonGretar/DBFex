@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Field decoder selection is now compiled with schema metadata, keeping textual and binary representations distinct before value decoding.
 - The minimum supported Elixir version is now 1.18.
 - The OTP application and Hex package names were corrected to `dbf_ex`.
 

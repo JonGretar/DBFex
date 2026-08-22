@@ -14,6 +14,7 @@ defmodule DBF.Field do
     :set_fields_flag,
     :descriptor_offset,
     :record_offset,
+    :decoder,
     :raw_descriptor,
     :reserved
   ]
@@ -29,6 +30,7 @@ defmodule DBF.Field do
           set_fields_flag: byte() | nil,
           descriptor_offset: non_neg_integer(),
           record_offset: pos_integer(),
+          decoder: DBF.ValueDecoder.decoder(),
           raw_descriptor: binary(),
           reserved: binary()
         }

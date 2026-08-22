@@ -5,6 +5,7 @@ defmodule DBF.Schema do
   alias DBF.Field
   alias DBF.FormatProfile
   alias DBF.Header
+  alias DBF.ValueDecoder
 
   @enforce_keys [:fields, :record_length]
   defstruct [:fields, :record_length]
@@ -22,7 +23,7 @@ defmodule DBF.Schema do
     with :ok <- validate_schema_size(binary, header, descriptor_offset),
          {:ok, fields} <-
            parse_descriptors(binary, profile.field_descriptor_layout, descriptor_offset, []),
-         {:ok, fields} <- compile_fields(fields, header) do
+         {:ok, fields} <- compile_fields(fields, profile, header) do
       {:ok, %__MODULE__{fields: fields, record_length: header.record_length}}
     end
   end
@@ -139,10 +140,15 @@ defmodule DBF.Schema do
      }}
   end
 
-  defp compile_fields(fields, header) do
+  defp compile_fields(fields, profile, header) do
     {compiled, record_length, names} =
       Enum.reduce(fields, {[], 1, %{}}, fn field, {compiled, offset, names} ->
-        compiled_field = %Field{field | record_offset: offset}
+        compiled_field = %Field{
+          field
+          | record_offset: offset,
+            decoder: ValueDecoder.compile(field, profile)
+        }
+
         descriptor_offsets = Map.get(names, field.name, [])
 
         {

@@ -2,7 +2,7 @@
 
 - Status: Active
 - Last updated: 2026-08-22
-- Progress: Phases -1 through 1 complete; Phase 2 is next
+- Progress: Phases -1 through 2 complete; Phase 3 is in progress
 
 This is a living implementation roadmap. Durable architectural decisions are
 recorded separately under `docs/adr/`.
@@ -299,9 +299,9 @@ crashes or resource leaks.
 
 ### Phase 3 — Complete value and text semantics
 
-- [ ] Classify field decoders as textual or binary before applying trimming,
+- [x] Classify field decoders as textual or binary before applying trimming,
       encoding, or other `String` operations.
-- [ ] Compile decoder choices once at open time rather than branching on field
+- [x] Compile decoder choices once at open time rather than branching on field
       type for every value.
 - [ ] Define blank versus null behavior for every supported field type and
       variant.

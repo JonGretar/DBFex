@@ -1,0 +1,114 @@
+defmodule DBF.ValueDecoder do
+  @moduledoc false
+
+  alias DBF.Error
+  alias DBF.Field
+  alias DBF.FormatProfile
+  alias DBF.Memo
+
+  @type representation :: :text | :binary
+  @type decoder ::
+          {representation(),
+           :character
+           | :variable_character
+           | :float
+           | :integer
+           | :currency
+           | :logical
+           | :numeric
+           | :memo
+           | :null_flags
+           | :date}
+          | {:unsupported, binary()}
+
+  @spec compile(Field.t(), FormatProfile.t()) :: decoder()
+  def compile(%Field{type: "C"}, %FormatProfile{}), do: {:text, :character}
+  def compile(%Field{type: "V"}, %FormatProfile{}), do: {:text, :variable_character}
+  def compile(%Field{type: "F"}, %FormatProfile{}), do: {:text, :float}
+  def compile(%Field{type: "I"}, %FormatProfile{}), do: {:binary, :integer}
+  def compile(%Field{type: "Y"}, %FormatProfile{}), do: {:binary, :currency}
+  def compile(%Field{type: "L"}, %FormatProfile{}), do: {:text, :logical}
+  def compile(%Field{type: "N"}, %FormatProfile{}), do: {:text, :numeric}
+  def compile(%Field{type: "M"}, %FormatProfile{}), do: {:text, :memo}
+  def compile(%Field{type: "0"}, %FormatProfile{}), do: {:binary, :null_flags}
+  def compile(%Field{type: "D"}, %FormatProfile{}), do: {:text, :date}
+  def compile(%Field{type: type}, %FormatProfile{}), do: {:unsupported, type}
+
+  @spec decode(DBF.Database.t(), Field.t(), binary()) :: term() | {:error, Error.t()}
+  def decode(_db, _field, ""), do: nil
+
+  def decode(_db, %{decoder: {:text, :character}}, value), do: String.trim(value)
+  def decode(_db, %{decoder: {:text, :variable_character}}, value), do: String.trim(value)
+
+  def decode(_db, %{decoder: {:text, :float}}, value) do
+    case String.trim(value) do
+      "" -> nil
+      new_value -> String.to_float(new_value)
+    end
+  end
+
+  def decode(_db, %{decoder: {:binary, :integer}}, <<value::signed-big-integer-32>>), do: value
+
+  def decode(
+        _db,
+        %{decoder: {:binary, :currency}, decimal: decimal},
+        <<value::signed-little-integer-64>>
+      ) do
+    value / :math.pow(10, decimal)
+  end
+
+  def decode(_db, %{decoder: {:text, :logical}}, value) do
+    case value do
+      logical when logical in ["Y", "y", "T", "t"] -> true
+      logical when logical in ["N", "n", "F", "f"] -> false
+      logical when logical in ["?", " "] -> nil
+      other -> raise "Illegal logical value: #{other}"
+    end
+  end
+
+  def decode(_db, %{decoder: {:text, :numeric}}, value) do
+    case value |> String.trim() |> Float.parse() do
+      {number, _} -> number
+      :error -> nil
+    end
+  end
+
+  def decode(db, %{decoder: {:text, :memo}}, value) do
+    new_value = String.trim(value)
+
+    case Integer.parse(new_value) do
+      {_block, rest} when rest != "" ->
+        {:error, Error.new(:invalid_memo, :invalid_memo_pointer, %{raw_pointer: new_value})}
+
+      {block, ""} ->
+        Memo.get_block(db.resource, db.memo_file, block)
+
+      :error when new_value == "" ->
+        nil
+
+      :error ->
+        {:error, Error.new(:invalid_memo, :invalid_memo_pointer, %{raw_pointer: new_value})}
+    end
+  end
+
+  def decode(_db, %{decoder: {:binary, :null_flags}}, _value), do: nil
+  def decode(_db, %{decoder: {:text, :date}}, "        "), do: nil
+
+  def decode(
+        _db,
+        %{decoder: {:text, :date}},
+        <<year::binary-size(4), month::binary-size(2), day::binary-size(2)>>
+      ) do
+    Date.from_iso8601!("#{year}-#{month}-#{day}")
+  end
+
+  def decode(_db, %{decoder: {:text, :date}}, _value), do: throw("Invalid Date")
+
+  def decode(_db, %{decoder: {:unsupported, _type}}, _value) do
+    {:error, Error.new(:unsupported_field_type, nil, %{})}
+  end
+
+  def decode(_db, _field, _value) do
+    {:error, Error.new(:unsupported_field_type, nil, %{})}
+  end
+end
