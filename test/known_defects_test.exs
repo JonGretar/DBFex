@@ -38,10 +38,5 @@ defmodule DBF.KnownDefectsTest do
         TestFixture.cleanup(path)
       end
     end
-
-    test "duplicate field names fail schema parsing instead of overwriting values" do
-      assert {:error, %DBF.DatabaseError{reason: :invalid_schema}} =
-               DBF.open("test/dbf_files/dbase_03.dbf")
-    end
   end
 end

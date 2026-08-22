@@ -65,6 +65,15 @@ defmodule DBF.OpeningSafetyTest do
     end
   end
 
+  test "rejects duplicate decoded field names during opening" do
+    assert {:error,
+            %DBF.DatabaseError{
+              reason: :invalid_schema,
+              cause: :duplicate_field_name,
+              context: %{field_name: "Point_ID", descriptor_offsets: [32, 992]}
+            }} = DBF.open("test/dbf_files/dbase_03.dbf")
+  end
+
   test "preserves structural metadata selected during opening" do
     path =
       TestFixture.legacy_dbf(table_flags: 0x03, language_driver: 0x57)
@@ -75,7 +84,15 @@ defmodule DBF.OpeningSafetyTest do
       assert db.version == 0x03
       assert db.table_flags == 0x03
       assert db.language_driver == 0x57
-      assert [%DBF.Field{raw_descriptor: raw, descriptor_offset: 32}] = db.fields
+
+      assert [
+               %DBF.Field{
+                 raw_descriptor: raw,
+                 descriptor_offset: 32,
+                 record_offset: 1
+               }
+             ] = db.fields
+
       assert byte_size(raw) == 32
       assert :ok = DBF.close(db)
     after

@@ -70,11 +70,11 @@ defmodule DBF.FixtureManifest do
       },
       profile: %{format: :dbase_iii, version: 0x03, memo: :none, encoding: {:ldid, 0x00}},
       provenance: @shared_provenance,
-      support: :partial,
-      exercise: {:open, %{records: 14, fields: 31}},
+      support: :corrupt,
+      exercise: {:open_error, :invalid_schema, 0x03},
       expected_values: {:schema_sidecar, "test/dbf_files/dbase_03_summary.txt"},
       normative_sources: [:dbase_iii_iv],
-      notes: ["Contains duplicate Point_ID descriptors; current decoding overwrites one value."]
+      notes: ["Contains duplicate Point_ID descriptors; opening rejects the ambiguous schema."]
     },
     %{
       id: :visual_foxpro_memo,

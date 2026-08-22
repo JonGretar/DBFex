@@ -1,21 +1,24 @@
-defmodule DBF.FieldTest do
+defmodule DBF.SchemaTest do
   use ExUnit.Case, async: true
 
-  alias DBF.Field
   alias DBF.FormatProfile
   alias DBF.Header
+  alias DBF.Schema
 
   test "parses complete FoxBase descriptors and preserves their bytes" do
     profile = profile!(0x02)
     descriptor = foxbase_descriptor("NAME", "C", 12)
     header = header(0x02, 8 + byte_size(descriptor) + 1, 13)
 
-    assert {:ok, [field]} = Field.parse(descriptor <> <<0x0D>>, profile, header)
+    assert {:ok, %Schema{fields: [field], record_length: 13}} =
+             Schema.parse(descriptor <> <<0x0D>>, profile, header)
+
     assert field.name == "NAME"
     assert field.type == "C"
     assert field.length == 12
     assert field.decimal == 0
     assert field.descriptor_offset == 8
+    assert field.record_offset == 1
     assert field.raw_descriptor == descriptor
   end
 
@@ -24,7 +27,9 @@ defmodule DBF.FieldTest do
     descriptor = legacy_descriptor("AMOUNT", "N", 12, 2, 33, 7, 4)
     header = header(0x03, 32 + byte_size(descriptor) + 1, 13)
 
-    assert {:ok, [field]} = Field.parse(descriptor <> <<0x0D>>, profile, header)
+    assert {:ok, %Schema{fields: [field], record_length: 13}} =
+             Schema.parse(descriptor <> <<0x0D>>, profile, header)
+
     assert field.name == "AMOUNT"
     assert field.type == "N"
     assert field.length == 12
@@ -33,7 +38,21 @@ defmodule DBF.FieldTest do
     assert field.work_area == 7
     assert field.set_fields_flag == 4
     assert field.descriptor_offset == 32
+    assert field.record_offset == 1
     assert field.raw_descriptor == descriptor
+  end
+
+  test "compiles each field's physical record offset" do
+    profile = profile!(0x03)
+    first = legacy_descriptor("FIRST", "C", 3)
+    second = legacy_descriptor("SECOND", "C", 5)
+    header = header(0x03, 32 + byte_size(first) + byte_size(second) + 1, 9)
+
+    assert {:ok, %Schema{fields: [first_field, second_field]}} =
+             Schema.parse(first <> second <> <<0x0D>>, profile, header)
+
+    assert first_field.record_offset == 1
+    assert second_field.record_offset == 4
   end
 
   test "requires the descriptor terminator" do
@@ -42,7 +61,7 @@ defmodule DBF.FieldTest do
     header = header(0x03, 32 + byte_size(descriptor), 11)
 
     assert {:error, %DBF.Error{reason: :invalid_schema, cause: :missing_descriptor_terminator}} =
-             Field.parse(descriptor, profile, header)
+             Schema.parse(descriptor, profile, header)
   end
 
   test "rejects record widths that do not equal the field widths plus marker" do
@@ -55,7 +74,7 @@ defmodule DBF.FieldTest do
               reason: :invalid_schema,
               cause: :record_width_mismatch,
               context: %{declared_record_bytes: 99, calculated_record_bytes: 11}
-            }} = Field.parse(descriptor <> <<0x0D>>, profile, header)
+            }} = Schema.parse(descriptor <> <<0x0D>>, profile, header)
   end
 
   test "rejects FoxBase descriptor truncation at every byte boundary" do
@@ -67,7 +86,7 @@ defmodule DBF.FieldTest do
       header = header(0x02, 8 + length, 13)
 
       assert {:error, %DBF.Error{reason: :invalid_schema}} =
-               Field.parse(binary, profile, header)
+               Schema.parse(binary, profile, header)
     end
   end
 
@@ -80,7 +99,7 @@ defmodule DBF.FieldTest do
       header = header(0x03, 32 + length, 13)
 
       assert {:error, %DBF.Error{reason: :invalid_schema}} =
-               Field.parse(binary, profile, header)
+               Schema.parse(binary, profile, header)
     end
   end
 

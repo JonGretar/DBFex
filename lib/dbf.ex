@@ -2,12 +2,12 @@ defmodule DBF do
   alias DBF.Database
   alias DBF.DatabaseError
   alias DBF.Error
-  alias DBF.Field
   alias DBF.FormatProfile
   alias DBF.Header
   alias DBF.Memo
   alias DBF.Record
   alias DBF.Resource
+  alias DBF.Schema
 
   @type option() :: {:memo_file, String.t() | nil}
   @type options() :: [option()]
@@ -175,8 +175,8 @@ defmodule DBF do
            Header.parse(header_binary, profile, file_size)
            |> add_error_context(filename: filename, version: version),
          {:ok, schema_binary} <- read_schema(resource, profile, header),
-         {:ok, fields} <-
-           Field.parse(schema_binary, profile, header)
+         {:ok, schema} <-
+           Schema.parse(schema_binary, profile, header)
            |> add_error_context(filename: filename, version: version),
          {:ok, memo} <- initialize_memo(resource, filename, options, profile) do
       {:ok,
@@ -193,7 +193,8 @@ defmodule DBF do
          record_bytes: header.record_length,
          table_flags: header.table_flags,
          language_driver: header.language_driver,
-         fields: fields
+         schema: schema,
+         fields: schema.fields
        }}
     end
   end
