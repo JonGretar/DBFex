@@ -12,9 +12,10 @@ defmodule DBF.Memo do
   @type family :: :dbt_iii | :dbt_iv
   @type t :: %__MODULE__{family: family(), block_size: pos_integer()}
 
-  @spec initialize(Resource.t(), family()) :: {:ok, t()} | {:error, Error.t()}
-  def initialize(resource, :dbt_iii), do: DBT3.initialize(resource)
-  def initialize(resource, :dbt_iv), do: DBT4.initialize(resource)
+  @spec initialize(Resource.t(), family(), non_neg_integer() | nil) ::
+          {:ok, t()} | {:error, Error.t()}
+  def initialize(resource, :dbt_iii, probe_block), do: DBT3.initialize(resource, probe_block)
+  def initialize(resource, :dbt_iv, probe_block), do: DBT4.initialize(resource, probe_block)
 
   @spec get_block(Resource.t(), t() | nil, non_neg_integer()) :: binary() | {:error, Error.t()}
   def get_block(_resource, nil, _block_number) do

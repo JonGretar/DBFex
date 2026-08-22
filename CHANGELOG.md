@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Record access now consistently rejects invalid indexes and returns contextual errors for short reads, malformed values, and unknown record markers; enumeration stops after emitting a record error.
 - dBASE III DBT memos now support multi-block values and reject malformed pointers, inconsistent headers, out-of-range blocks, and missing terminators.
 - dBASE IV DBT memos now honor declared block sizes and total lengths, support multi-block values, recognize field terminators, and reject invalid signatures, pointers, and truncated blocks.
+- Required memo companions now reject empty, truncated, and detectably mismatched DBT files during opening, including explicitly supplied paths.
 
 ## [0.1.0] - 2024-03-27
 

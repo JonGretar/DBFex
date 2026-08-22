@@ -8,12 +8,15 @@ defmodule DBF.Memo.DBT3 do
   @block_size 512
   @terminator <<0x1A, 0x1A>>
 
-  @spec initialize(Resource.t()) :: {:ok, Memo.t()} | {:error, Error.t()}
-  def initialize(resource) do
-    with {:ok, <<next_block::little-unsigned-integer-size(32), _rest::binary>>} <-
-           Resource.read_exact(resource, :memo, 0, @block_size),
+  @spec initialize(Resource.t(), non_neg_integer() | nil) ::
+          {:ok, Memo.t()} | {:error, Error.t()}
+  def initialize(resource, probe_block) do
+    with {:ok, header} <- Resource.read_exact(resource, :memo, 0, @block_size),
+         <<next_block::little-unsigned-integer-size(32), _rest::binary>> = header,
          {:ok, size} <- Resource.size(resource, :memo),
-         :ok <- validate_header(next_block, size) do
+         :ok <- validate_header(next_block, size),
+         :ok <- validate_probe(probe_block, size),
+         :ok <- reject_dbt4_family(resource, header, size, probe_block) do
       {:ok, %Memo{family: :dbt_iii, block_size: @block_size}}
     else
       {:error, %Error{} = error} -> {:error, %Error{error | reason: :invalid_memo}}
@@ -84,6 +87,36 @@ defmodule DBF.Memo.DBT3 do
     end
   end
 
+  defp reject_dbt4_family(
+         resource,
+         <<_prefix::binary-size(20), block_size::little-unsigned-integer-size(16),
+           _rest::binary>>,
+         size,
+         probe_block
+       )
+       when is_integer(probe_block) and probe_block >= 1 and block_size >= @block_size and
+              rem(block_size, @block_size) == 0 and probe_block * block_size + 4 <= size do
+    offset = probe_block * block_size
+
+    case Resource.read_exact(resource, :memo, offset, 4) do
+      {:ok, <<0xFF, 0xFF, 0x08, 0x00>>} ->
+        {:error, :mismatched_memo_family,
+         %{
+           expected_memo_family: :dbt_iii,
+           actual_memo_family: :dbt_iv,
+           offset: offset
+         }}
+
+      {:ok, _signature} ->
+        :ok
+
+      {:error, %Error{} = error} ->
+        {:error, error}
+    end
+  end
+
+  defp reject_dbt4_family(_resource, _header, _size, _probe_block), do: :ok
+
   defp validate_header(next_block, size)
        when next_block >= 1 and size > (next_block - 1) * @block_size and
               size <= next_block * @block_size,
@@ -91,6 +124,15 @@ defmodule DBF.Memo.DBT3 do
 
   defp validate_header(next_block, size) do
     {:error, :invalid_memo_header, %{next_block: next_block, actual_bytes: size, offset: 0}}
+  end
+
+  defp validate_probe(nil, _size), do: :ok
+
+  defp validate_probe(block_number, size) do
+    case validate_pointer(block_number, size) do
+      {:ok, _offset} -> :ok
+      error -> error
+    end
   end
 
   defp validate_pointer(block_number, size)

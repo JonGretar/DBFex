@@ -10,8 +10,9 @@ defmodule DBF.Memo.DBT4 do
   @block_signature <<0xFF, 0xFF, 0x08, 0x00>>
   @text_terminators [<<0x1F>>, <<0x1A>>]
 
-  @spec initialize(Resource.t()) :: {:ok, Memo.t()} | {:error, Error.t()}
-  def initialize(resource) do
+  @spec initialize(Resource.t(), non_neg_integer() | nil) ::
+          {:ok, Memo.t()} | {:error, Error.t()}
+  def initialize(resource, probe_block) do
     with {:ok,
           <<next_block::little-unsigned-integer-size(32), _reserved::binary-size(16),
             declared_block_size::little-unsigned-integer-size(16),
@@ -19,7 +20,8 @@ defmodule DBF.Memo.DBT4 do
            Resource.read_exact(resource, :memo, 0, @header_bytes),
          block_size <- normalize_block_size(declared_block_size),
          {:ok, size} <- Resource.size(resource, :memo),
-         :ok <- validate_header(next_block, block_size, size) do
+         :ok <- validate_header(next_block, block_size, size),
+         :ok <- verify_probe(resource, probe_block, block_size, size) do
       {:ok, %Memo{family: :dbt_iv, block_size: block_size}}
     else
       {:error, %Error{} = error} -> {:error, %Error{error | reason: :invalid_memo}}
@@ -89,6 +91,20 @@ defmodule DBF.Memo.DBT4 do
 
   defp validate_pointer(block_number, _block_size, size) do
     {:error, :invalid_memo_pointer, %{memo_block: block_number, memo_bytes: size}}
+  end
+
+  defp verify_probe(_resource, nil, _block_size, _size), do: :ok
+
+  defp verify_probe(resource, probe_block, block_size, size) do
+    with {:ok, offset} <- validate_pointer(probe_block, block_size, size),
+         {:ok, signature} <- Resource.read_exact(resource, :memo, offset, 4) do
+      if signature == @block_signature do
+        :ok
+      else
+        {:error, :invalid_memo_block_signature,
+         %{memo_block: probe_block, signature: signature, offset: offset}}
+      end
+    end
   end
 
   defp validate_header(next_block, block_size, size)

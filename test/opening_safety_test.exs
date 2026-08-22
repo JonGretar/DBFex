@@ -133,7 +133,29 @@ defmodule DBF.OpeningSafetyTest do
     end
   end
 
-  test "missing and truncated required memos fail during opening" do
+  test "mismatched DBT families fail during opening" do
+    assert {:error,
+            %DBF.DatabaseError{
+              reason: :invalid_memo,
+              cause: :mismatched_memo_family,
+              context: %{expected_memo_family: :dbt_iii, actual_memo_family: :dbt_iv}
+            }} =
+             DBF.open("test/dbf_files/dbase_83.dbf",
+               memo_file: "test/dbf_files/dbase_8b.dbt"
+             )
+
+    assert {:error,
+            %DBF.DatabaseError{
+              reason: :invalid_memo,
+              cause: :invalid_memo_block_signature,
+              context: %{memo_block: 1}
+            }} =
+             DBF.open("test/dbf_files/dbase_8b.dbf",
+               memo_file: "test/dbf_files/dbase_83.dbt"
+             )
+  end
+
+  test "missing, empty, and truncated required memos fail during opening" do
     assert {:error, %DBF.DatabaseError{reason: :missing_memo_file}} =
              DBF.open("test/dbf_files/dbase_83_missing_memo.dbf")
 
@@ -142,23 +164,25 @@ defmodule DBF.OpeningSafetyTest do
                memo_file: "test/dbf_files/does-not-exist.dbt"
              )
 
-    path =
-      "test/dbf_files/dbase_83.dbf"
-      |> File.read!()
-      |> TestFixture.write_temp!("truncated-memo.dbf")
+    for {basename, memo} <- [{"empty-memo.dbf", <<>>}, {"truncated-memo.dbf", <<0>>}] do
+      path =
+        "test/dbf_files/dbase_83.dbf"
+        |> File.read!()
+        |> TestFixture.write_temp!(basename)
 
-    File.write!(Path.rootname(path) <> ".dbt", <<0>>)
+      File.write!(Path.rootname(path) <> ".dbt", memo)
 
-    try do
-      assert {:error,
-              %DBF.DatabaseError{
-                reason: :invalid_memo,
-                context: %{filename: memo_path, source: :memo, offset: 0}
-              }} = DBF.open(path)
+      try do
+        assert {:error,
+                %DBF.DatabaseError{
+                  reason: :invalid_memo,
+                  context: %{filename: memo_path, source: :memo, offset: 0}
+                }} = DBF.open(path)
 
-      assert memo_path == Path.rootname(path) <> ".dbt"
-    after
-      TestFixture.cleanup(path)
+        assert memo_path == Path.rootname(path) <> ".dbt"
+      after
+        TestFixture.cleanup(path)
+      end
     end
   end
 end

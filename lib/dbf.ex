@@ -207,7 +207,8 @@ defmodule DBF do
          {:ok, schema} <-
            Schema.parse(schema_binary, profile, header)
            |> add_error_context(filename: filename, version: version),
-         {:ok, memo} <- initialize_memo(resource, filename, options, profile) do
+         {:ok, memo} <-
+           initialize_memo(resource, filename, options, profile, header, schema) do
       {:ok,
        %Database{
          resource: resource,
@@ -248,7 +249,14 @@ defmodule DBF do
     end
   end
 
-  defp initialize_memo(_resource, _filename, options, %FormatProfile{memo_family: :none}) do
+  defp initialize_memo(
+         _resource,
+         _filename,
+         options,
+         %FormatProfile{memo_family: :none},
+         _header,
+         _schema
+       ) do
     case Keyword.fetch!(options, :memo_file) do
       nil ->
         {:ok, nil}
@@ -258,12 +266,14 @@ defmodule DBF do
     end
   end
 
-  defp initialize_memo(resource, filename, options, %FormatProfile{} = profile) do
-    paths = memo_paths(filename, Keyword.fetch!(options, :memo_file))
-    acquire_and_initialize_memo(resource, paths, profile, nil)
+  defp initialize_memo(resource, filename, options, %FormatProfile{} = profile, header, schema) do
+    with {:ok, probe_block} <- find_memo_probe(resource, header, schema) do
+      paths = memo_paths(filename, Keyword.fetch!(options, :memo_file))
+      acquire_and_initialize_memo(resource, paths, profile, probe_block, nil)
+    end
   end
 
-  defp acquire_and_initialize_memo(_resource, [], profile, last_error) do
+  defp acquire_and_initialize_memo(_resource, [], profile, _probe_block, last_error) do
     error =
       last_error ||
         Error.new(:missing_memo_file, :enoent, %{source: :memo, version: profile.version})
@@ -271,17 +281,72 @@ defmodule DBF do
     {:error, Error.add_context(error, %{version: profile.version})}
   end
 
-  defp acquire_and_initialize_memo(resource, [path | paths], profile, _last_error) do
+  defp acquire_and_initialize_memo(resource, [path | paths], profile, probe_block, _last_error) do
     case Resource.acquire_memo(resource, path) do
       {:ok, ^resource} ->
-        Memo.initialize(resource, profile.memo_family)
+        Memo.initialize(resource, profile.memo_family, probe_block)
         |> add_error_context(filename: path, version: profile.version)
 
       {:error, %Error{reason: :missing_memo_file} = error} ->
-        acquire_and_initialize_memo(resource, paths, profile, error)
+        acquire_and_initialize_memo(resource, paths, profile, probe_block, error)
 
       {:error, %Error{} = error} ->
         {:error, Error.add_context(error, %{version: profile.version})}
+    end
+  end
+
+  defp find_memo_probe(resource, header, schema) do
+    memo_fields = Enum.filter(schema.fields, &(&1.type == "M"))
+    find_memo_probe(resource, header, memo_fields, 0)
+  end
+
+  defp find_memo_probe(_resource, %{record_count: record_count}, _fields, record_count) do
+    {:ok, nil}
+  end
+
+  defp find_memo_probe(resource, header, fields, record_number) do
+    case find_record_memo_probe(resource, header, fields, record_number) do
+      {:ok, nil} -> find_memo_probe(resource, header, fields, record_number + 1)
+      result -> result
+    end
+  end
+
+  defp find_record_memo_probe(_resource, _header, [], _record_number), do: {:ok, nil}
+
+  defp find_record_memo_probe(resource, header, [field | fields], record_number) do
+    offset = header.header_length + record_number * header.record_length + field.record_offset
+
+    case Resource.read_exact(resource, :table, offset, field.length) do
+      {:ok, raw_pointer} ->
+        case parse_memo_probe(raw_pointer, record_number, field, offset) do
+          {:ok, nil} -> find_record_memo_probe(resource, header, fields, record_number)
+          result -> result
+        end
+
+      {:error, %Error{} = error} ->
+        {:error, %Error{error | reason: :invalid_memo}}
+    end
+  end
+
+  defp parse_memo_probe(raw_pointer, record_number, field, offset) do
+    pointer = String.trim(raw_pointer)
+
+    case Integer.parse(pointer) do
+      {block, ""} when block >= 1 ->
+        {:ok, block}
+
+      :error when pointer == "" ->
+        {:ok, nil}
+
+      _invalid ->
+        {:error,
+         Error.new(:invalid_memo, :invalid_memo_pointer, %{
+           raw_pointer: pointer,
+           record_number: record_number,
+           field_name: field.name,
+           field_type: field.type,
+           offset: offset
+         })}
     end
   end
 

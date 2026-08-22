@@ -286,11 +286,11 @@ architectural slices are:
 - [x] Implement the chosen duplicate-field-name policy in `DBF.Schema`.
 - [x] Correct DBT behavior separately in `DBF.Memo.DBT3` and `DBF.Memo.DBT4`,
       including termination, block sizing, pointers, and multi-block values.
-- [ ] Implement the chosen missing-memo policy and test missing, empty,
+- [x] Implement the chosen missing-memo policy and test missing, empty,
       truncated, mismatched, and explicitly supplied memo files.
-- [ ] Normalize record and memo failures through the contextual internal error
+- [x] Normalize record and memo failures through the contextual internal error
       representation.
-- [ ] Verify that claimed FoxBASE, dBASE III, and dBASE IV fixtures still produce
+- [x] Verify that claimed FoxBASE, dBASE III, and dBASE IV fixtures still produce
       records compatible with the Phase -1 contract.
 
 **Exit criterion:** Currently claimed formats produce compatible records, while

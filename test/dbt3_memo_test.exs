@@ -28,27 +28,28 @@ defmodule DBF.Memo.DBT3Test do
   test "rejects malformed textual memo pointers" do
     memo = dbt3_header(1)
 
-    with_dbt3(memo, "not-a-ptr", fn db ->
-      assert {:error,
-              %DBF.DatabaseError{
-                reason: :invalid_memo,
-                cause: :invalid_memo_pointer,
-                context: %{field_name: "VALUE", raw_pointer: "not-a-ptr"}
-              }} = DBF.get(db, 0)
-    end)
+    error =
+      assert_raise DBF.DatabaseError, fn ->
+        with_dbt3(memo, "not-a-ptr", fn _db -> :ok end)
+      end
+
+    assert error.reason == :invalid_memo
+    assert error.cause == :invalid_memo_pointer
+    assert error.context.field_name == "VALUE"
+    assert error.context.raw_pointer == "not-a-ptr"
   end
 
   test "rejects out-of-range memo pointers" do
     memo = dbt3_header(1)
 
-    with_dbt3(memo, 9, fn db ->
-      assert {:error,
-              %DBF.DatabaseError{
-                reason: :invalid_memo,
-                cause: :invalid_memo_pointer,
-                context: %{memo_block: 9}
-              }} = DBF.get(db, 0)
-    end)
+    error =
+      assert_raise DBF.DatabaseError, fn ->
+        with_dbt3(memo, 9, fn _db -> :ok end)
+      end
+
+    assert error.reason == :invalid_memo
+    assert error.cause == :invalid_memo_pointer
+    assert error.context.memo_block == 9
   end
 
   test "rejects a next-block declaration inconsistent with the file size" do

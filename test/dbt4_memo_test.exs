@@ -29,6 +29,24 @@ defmodule DBF.Memo.DBT4Test do
     end)
   end
 
+  test "validates the referenced block instead of assuming block one is used" do
+    block_size = 512
+    text = "later block"
+
+    block =
+      <<0xFF, 0xFF, 0x08, 0x00, byte_size(text) + 8::little-unsigned-integer-size(32)>> <> text
+
+    memo =
+      dbt4_header(3, block_size) <>
+        :binary.copy(<<0>>, block_size) <>
+        block <>
+        :binary.copy(<<0>>, block_size - byte_size(block))
+
+    with_dbt4(memo, 2, fn db ->
+      assert {:record, %{"VALUE" => "later block"}} = DBF.get(db, 0)
+    end)
+  end
+
   test "reads declared payloads spanning multiple blocks" do
     text = :binary.copy("memo", 300)
     memo = dbt4_file(text)
@@ -49,14 +67,13 @@ defmodule DBF.Memo.DBT4Test do
   test "rejects an invalid memo block signature" do
     memo = dbt4_file("memo", signature: <<0, 0, 0, 0>>)
 
-    with_dbt4(memo, 1, fn db ->
-      assert {:error,
-              %DBF.DatabaseError{
-                reason: :invalid_memo,
-                cause: :invalid_memo_block_signature,
-                context: %{memo_block: 1}
-              }} = DBF.get(db, 0)
-    end)
+    error =
+      assert_raise DBF.DatabaseError, fn ->
+        with_dbt4(memo, 1, fn _db -> :ok end)
+      end
+
+    assert error.reason == :invalid_memo
+    assert error.cause == :invalid_memo_block_signature
   end
 
   test "rejects a declared payload extending beyond the memo file" do
@@ -75,14 +92,14 @@ defmodule DBF.Memo.DBT4Test do
   test "rejects out-of-range memo pointers" do
     memo = dbt4_file("memo")
 
-    with_dbt4(memo, 9, fn db ->
-      assert {:error,
-              %DBF.DatabaseError{
-                reason: :invalid_memo,
-                cause: :invalid_memo_pointer,
-                context: %{memo_block: 9}
-              }} = DBF.get(db, 0)
-    end)
+    error =
+      assert_raise DBF.DatabaseError, fn ->
+        with_dbt4(memo, 9, fn _db -> :ok end)
+      end
+
+    assert error.reason == :invalid_memo
+    assert error.cause == :invalid_memo_pointer
+    assert error.context.memo_block == 9
   end
 
   defp with_dbt4(memo, pointer, fun) do

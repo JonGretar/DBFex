@@ -68,6 +68,9 @@ See [`ADR 0003`](docs/adr/0003-compose-format-variants-by-layout.md).
   record fields such as Integer and Currency are little-endian.
 - Memo pointers may be space-padded decimal text or a binary integer depending
   on the format and field width.
+- The verified dBASE IV fixture stores its little-endian block size at DBT header
+  offset 20, uses `FF FF 08 00` block signatures, includes the 8-byte block
+  header in each declared memo length, and uses `0x1F` as a text terminator.
 - A memo may span several blocks. Bounds-check `block * block_size`, headers,
   and declared payload lengths before allocating or reading.
 - Memo, General, Picture, Blob, and binary-flagged Character/Memo values are not
