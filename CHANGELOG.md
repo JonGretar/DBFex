@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A pre-push configuration for pre-commit.
 - GitHub Actions CI for tests, formatting, Credo, and Dialyzer.
 - Erlang/OTP and Elixir version pinning through `.tool-versions`.
+- A documented pre-1.0 compatibility contract and public API characterization tests.
+- A complete fixture manifest with provenance, support classifications, primary references, and automated coverage checks.
+- A README compatibility table with evidence-based support levels.
 
 ### Changed
 
