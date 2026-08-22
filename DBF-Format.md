@@ -33,6 +33,31 @@ evidence; never infer complete support from the version byte alone.
 - Duplicate field names are legal in real files, often after name truncation.
   Never silently overwrite one value when constructing a map.
 
+## Organizing variant-specific code
+
+Treat a format as a composition of header layout, descriptor layout, memo family,
+record metadata, and field/value capabilities. Do not copy the complete reader
+into one module per version, and do not scatter raw version-byte checks through
+parsers.
+
+- Keep `DBF.FormatProfile` as the single version-selection point.
+- Dispatch parsers on profile-selected layouts or families.
+- Put schema parsing, duplicate-name validation, and compiled record offsets in
+  `DBF.Schema`; keep `DBF.Field` as one field's metadata.
+- Keep genuinely different memo algorithms in `DBF.Memo.DBT3`,
+  `DBF.Memo.DBT4`, and later `DBF.Memo.FPT`, behind a small facade.
+- Keep shared header logic together until another layout makes separate modules
+  materially clearer.
+- Keep record decoding profile-aware through compiled schema metadata, not raw
+  version checks.
+- Defer value-decoder module boundaries until value, blank/null, encoding, and
+  binary/text contracts are settled.
+- Prefer plain internal modules with explicit function contracts. Do not add one
+  large whole-format behavior whose callbacks combine independently varying
+  concerns.
+
+See [`ADR 0003`](docs/adr/0003-compose-format-variants-by-layout.md).
+
 ## Memo and binary traps
 
 - `.DBT` and `.FPT` are different families. Extension discovery does not select

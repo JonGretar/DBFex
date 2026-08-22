@@ -263,6 +263,17 @@ for malformed or truncated structure.
 
 ### Phase 2 — Make current format support correct
 
+Organize variant logic by independently selected layouts and capabilities, not by
+copying the full reader into `DBase3`, `DBase4`, or `VisualFoxPro` implementations.
+See [`ADR 0003`](../adr/0003-compose-format-variants-by-layout.md). The first two
+architectural slices are:
+
+- [ ] Introduce `DBF.Schema` to own descriptor parsing, validation, duplicate-name
+      policy, and compiled record offsets. Keep `DBF.Field` as metadata for one
+      field.
+- [ ] Split materially different memo algorithms into `DBF.Memo.DBT3` and
+      `DBF.Memo.DBT4` behind the profile-driven `DBF.Memo` facade. Use plain
+      internal modules rather than a whole-format behavior.
 - [ ] Reject negative, non-integer, and out-of-range record indexes consistently.
 - [ ] Handle short reads, truncated records, EOF markers, and unknown record
       markers according to the Phase -1 contract.
@@ -272,9 +283,9 @@ for malformed or truncated structure.
       shape, including halt and suspension behavior.
 - [ ] Compile validated field offsets once during opening so record reads cannot
       drift from the declared record width.
-- [ ] Implement the chosen duplicate-field-name policy.
-- [ ] Correct DBT behavior separately for dBASE III and dBASE IV, including
-      termination, block sizing, pointers, and multi-block values.
+- [ ] Implement the chosen duplicate-field-name policy in `DBF.Schema`.
+- [ ] Correct DBT behavior separately in `DBF.Memo.DBT3` and `DBF.Memo.DBT4`,
+      including termination, block sizing, pointers, and multi-block values.
 - [ ] Implement the chosen missing-memo policy and test missing, empty,
       truncated, mismatched, and explicitly supplied memo files.
 - [ ] Normalize record and memo failures through the contextual internal error
