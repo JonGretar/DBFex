@@ -9,19 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Credo and Dialyxir development tooling, with a `mix precommit` alias for compilation, formatting, tests, static analysis, and linting.
-- A pre-push configuration for pre-commit.
-- GitHub Actions CI for tests, formatting, Credo, and Dialyzer.
-- Erlang/OTP and Elixir version pinning through `.tool-versions`.
-- A documented pre-1.0 compatibility contract and public API characterization tests.
-- A complete fixture manifest with provenance, support classifications, primary references, and automated coverage checks.
-- A README compatibility table with evidence-based support levels.
-- A checked-in reader roadmap covering the planned parser hardening and format expansion phases.
+- Documented evidence-based support levels for the available DBF variants.
 
 ### Changed
 
 - The minimum supported Elixir version is now 1.18.
-- ExDoc was updated to the 0.40 release series.
 - The OTP application and Hex package names were corrected to `dbf_ex`.
 
 ### Fixed
