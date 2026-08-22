@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A documented pre-1.0 compatibility contract and public API characterization tests.
 - A complete fixture manifest with provenance, support classifications, primary references, and automated coverage checks.
 - A README compatibility table with evidence-based support levels.
+- A checked-in reader roadmap covering the planned parser hardening and format expansion phases.
 
 ### Changed
 

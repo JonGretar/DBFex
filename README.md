@@ -58,4 +58,6 @@ checked-in fixtures. A recognized version byte alone does not imply support.
 | NDX/MDX/CDX/DCX index reading       | —                              | Not planned | Tracked separately from table reading.                                                                                  |
 
 See `test/support/fixture_manifest.ex` for per-fixture provenance, encoding,
-redistribution status, expected-value source, and normative references.
+redistribution status, expected-value source, and normative references. The
+longer-term implementation sequence is tracked in
+[`docs/plans/dbf-reader-roadmap.md`](docs/plans/dbf-reader-roadmap.md).
