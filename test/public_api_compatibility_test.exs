@@ -18,6 +18,13 @@ defmodule DBF.PublicAPICompatibilityTest do
       assert :ok = DBF.close(db2)
     end
 
+    test "using a database after close returns a public resource error" do
+      assert {:ok, db} = DBF.open(@zipcodes)
+      assert :ok = DBF.close(db)
+
+      assert {:error, %DBF.DatabaseError{reason: :file_error}} = DBF.get(db, 0)
+    end
+
     test "open!/1 and open!/2 return an open database" do
       db1 = DBF.open!(@zipcodes)
       assert :ok = DBF.close(db1)

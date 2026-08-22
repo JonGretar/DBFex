@@ -51,7 +51,7 @@ checked-in fixtures. A recognized version byte alone does not imply support.
 | ----------------------------------- | ------------------------------ | ----------- | ----------------------------------------------------------------------------------------------------------------------- |
 | FoxBase                             | `0x02`                         | Partial     | Header, schema, and records are exercised; field-level oracle coverage is limited.                                      |
 | dBASE III without memo              | `0x03`                         | Partial     | Multiple real files are readable; duplicate field names and encoding semantics remain unresolved in the implementation. |
-| dBASE III with DBT memo             | `0x83`                         | Partial     | Basic memo reads work; multi-block and missing-memo behavior need correction.                                           |
+| dBASE III with DBT memo             | `0x83`                         | Partial     | Basic memo reads work and missing companions fail during opening; multi-block decoding remains incomplete.              |
 | dBASE IV with DBT memo              | `0x8B`                         | Verified    | Representative schema, values, and memo data are covered.                                                               |
 | FoxPro and Visual FoxPro tables/FPT | `0x30`, `0x31`, `0x32`, `0xF5` | Planned     | Fixtures cover FPT, autoincrement, variable-width fields, null flags, and CP1251 text.                                  |
 | dBASE Level 7-style tables          | `0x8C` fixture                 | Planned     | Extended header/descriptor and memo support are not implemented.                                                        |

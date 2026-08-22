@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Opening now validates options before file access and returns contextual errors for malformed or truncated structures and missing required memos.
+- Table and memo resources are acquired transactionally, cleaned up after failed opens, and closed idempotently.
 - Corrected public type specifications for database errors, memo handles, and memo-file opening results.
 
 ## [0.1.0] - 2024-03-27

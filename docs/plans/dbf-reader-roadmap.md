@@ -2,7 +2,7 @@
 
 - Status: Active
 - Last updated: 2026-08-22
-- Progress: Phases -1 and 0 complete; Phase 1 is next
+- Progress: Phases -1 through 1 complete; Phase 2 is next
 
 This is a living implementation roadmap. Durable architectural decisions are
 recorded separately under `docs/adr/`.
@@ -225,35 +225,36 @@ public reader API or prematurely designing a writer.
 
 ### Phase 1 — Build failure-safe parsing foundations
 
-- [ ] Validate options before opening any file.
-- [ ] Introduce one concrete resource module that owns DBF and memo handles,
+- [x] Validate options before opening any file.
+- [x] Introduce one concrete resource module that owns DBF and memo handles,
       positional reads, file-size queries, transactional acquisition, and
-      deterministic cleanup.
-- [ ] Make opening transactional: close every acquired handle if profile,
+      deterministic cleanup. See
+      [`ADR 0002`](../adr/0002-use-a-process-backed-resource-owner.md).
+- [x] Make opening transactional: close every acquired handle if profile,
       header, schema, encoding, or memo initialization fails.
-- [ ] Define one contextual internal error representation and translate it to
+- [x] Define one contextual internal error representation and translate it to
       `DBF.DatabaseError` only at the public seam. Preserve the original reason
       and add filename, byte offset, record number, field name/type, and version
       where available.
-- [ ] Select a minimal format profile during header parsing. It must identify the
+- [x] Select a minimal format profile during header parsing. It must identify the
       header layout, field-descriptor layout, memo family, and record metadata
       needed by currently supported variants.
-- [ ] Remove scattered version allowlists and generic memo-family guesses as
+- [x] Remove scattered version allowlists and generic memo-family guesses as
       their knowledge moves into the selected profile.
-- [ ] Make header and schema parsers consume bounded binaries and return total
+- [x] Make header and schema parsers consume bounded binaries and return total
       results rather than performing I/O or requiring the complete database
       struct.
-- [ ] Replace partial matches, bang conversions, and throws in these parser paths
+- [x] Replace partial matches, bang conversions, and throws in these parser paths
       with result-returning code.
-- [ ] Validate header length, record length, record count against file size,
+- [x] Validate header length, record length, record count against file size,
       descriptor terminator, summed field widths, and all legal offsets before
       reading records.
-- [ ] Preserve raw version, table flags, language-driver ID, and complete field
+- [x] Preserve raw version, table flags, language-driver ID, and complete field
       descriptors in internal metadata.
-- [ ] Add cheap table-driven truncation tests at every byte boundary of the
+- [x] Add cheap table-driven truncation tests at every byte boundary of the
       current header and descriptor layouts. Keep full property and fuzz testing
       for Phase 5.
-- [ ] Do not introduce a resource behavior until a second real source adapter is
+- [x] Do not introduce a resource behavior until a second real source adapter is
       accepted and implemented.
 
 **Exit criterion:** Opening and structural parsing of current variants use one

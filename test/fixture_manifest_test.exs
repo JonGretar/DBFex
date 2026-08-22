@@ -71,6 +71,9 @@ defmodule DBF.FixtureManifestTest do
 
       {:header_only, ^version} ->
         assert File.stat!(path).size >= 1
+
+      {:open_error, reason, ^version} ->
+        assert {:error, %DBF.DatabaseError{reason: ^reason}} = DBF.open(path)
     end
   end
 end

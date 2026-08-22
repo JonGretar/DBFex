@@ -161,8 +161,8 @@ defmodule DBF.FixtureManifest do
       },
       profile: %{format: :dbase_iii, version: 0x83, memo: :missing_dbt, encoding: {:ldid, 0x00}},
       provenance: @shared_provenance,
-      support: :planned,
-      exercise: {:header_only, 0x83},
+      support: :verified,
+      exercise: {:open_error, :missing_memo_file, 0x83},
       expected_values: {:yaml_sidecar, "test/dbf_files/dbase_83_missing_memo_record_0.yml"},
       normative_sources: [:dbase_iii_iv, :older_xbase_secondary]
     },
