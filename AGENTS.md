@@ -7,6 +7,7 @@ DBFex is an Elixir library for reading dBASE/DBF files. It currently supports re
 - Preserve the public tagged-tuple API and `Enumerable` implementation unless a change explicitly requires breaking compatibility.
 - Treat files under `test/dbf_files/` as fixtures; do not rewrite binary fixtures.
 - Add regression tests using the smallest suitable fixture when changing a parser.
+- The file DBF-Format.md includes notes about the file format, references about it and example projects. If you find valuable notes to jot down for future agents you can use that file.
 - Use Jujutsu (`jj`) rather than Git for version-control operations.
 
 ## Changelog

@@ -6,7 +6,7 @@ At the moment it only supports read.
 
 ## Usage
 
-Open a file with open/1 or open/2 
+Open a file with open/1 or open/2
 
 ```elixir
 {:ok, db} = DBF.open("test/dbf_files/bayarea_zipcodes.dbf")
@@ -31,10 +31,3 @@ case DBF.get(db, 2) do
   {:error, _} -> IO.puts "OMG"
 end
 ```
-
-## DBF File Format
-
- * http://independent-software.com/dbase-dbf-dbt-file-format.html
- * https://www.clicketyclick.dk/databases/xbase/format/dbf.html#DBF_STRUCT
- * https://wiki.dbfmanager.com/dbf-structure 
-
