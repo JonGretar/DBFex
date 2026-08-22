@@ -36,17 +36,24 @@ Value parsing returns explicit results. Exceptions remain only as a defensive
 boundary around decoder defects, not ordinary control flow for dates, logicals,
 floats, or numerics.
 
-An exact numeric representation, explicit null metadata, and strict or richer
-permissive decoding require opt-in policies with documented result semantics.
-They must not silently alter this default.
+Exact numerics are available through the opt-in `numeric: :exact` policy. It
+returns integers for scale-zero `N` fields and `Decimal` values for positive
+scales. Parsing is bounded by the field width, and malformed values retain the
+compatible `nil` result. The default remains `numeric: :float`.
+
+Explicit null metadata and strict or richer permissive decoding require opt-in
+policies with documented result semantics. They must not silently alter the
+compatible default.
 
 ## Consequences
 
 Existing callers continue receiving floats and the established blank values.
-Malformed numeric suffixes no longer disappear behind a successful partial
-parse. Callers cannot distinguish a blank legacy numeric from malformed numeric
-text under the compatible default; a future policy must provide that distinction
-before claiming strict or lossless decoding.
+Callers that need exact values can opt into integers and `Decimal` without
+changing record or error tuple shapes. Malformed numeric suffixes no longer
+disappear behind a successful partial parse. Callers cannot distinguish a blank
+legacy numeric from malformed numeric text under either numeric representation;
+a future data-decoding policy must provide that distinction before claiming
+strict or lossless decoding.
 
 Visual FoxPro's null bitmap must be represented separately from blank field
 bytes when that record layout is implemented. It must not reinterpret legacy

@@ -35,7 +35,8 @@ defmodule DBF.TestFixture do
     record_count = Keyword.get(options, :record_count, 0)
     field_length = Keyword.get(options, :field_length, 1)
     field_type = Keyword.get(options, :field_type, "C")
-    descriptor = legacy_descriptor("VALUE", field_type, field_length)
+    decimal = Keyword.get(options, :decimal, 0)
+    descriptor = legacy_descriptor("VALUE", field_type, field_length, decimal)
     terminator = if Keyword.get(options, :terminator, true), do: <<0x0D>>, else: <<>>
     schema = descriptor <> terminator
     header_length = Keyword.get(options, :header_length, 32 + byte_size(schema))
@@ -53,7 +54,7 @@ defmodule DBF.TestFixture do
     header <> schema <> records
   end
 
-  defp legacy_descriptor(name, type, length, decimal \\ 0) do
+  defp legacy_descriptor(name, type, length, decimal) do
     padded_name = name <> :binary.copy(<<0>>, 11 - byte_size(name))
 
     padded_name <>

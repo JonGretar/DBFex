@@ -34,6 +34,20 @@ end)
 For streaming, suspended enumeration, or longer-lived access, use
 `DBF.open/1,2` and pair every successful open with `DBF.close/1`.
 
+### Exact numeric values
+
+Numeric fields remain floats by default for compatibility. Opt into exact values
+to receive integers for scale-zero fields and `Decimal` values for positive
+scales:
+
+```elixir
+DBF.with_open("table.dbf", [numeric: :exact], fn db ->
+  DBF.get(db, 0)
+end)
+```
+
+Malformed and blank numeric fields remain `nil` under this value policy.
+
 ## Format compatibility
 
 Support is evidence-based and applies only to the capabilities exercised by the
@@ -47,16 +61,16 @@ checked-in fixtures. A recognized version byte alone does not imply support.
   not accepted yet.
 - **Not planned** — outside the scope of the read-only table reader.
 
-| Format/profile                      | Version bytes                  | Level       | Notes                                                                                                                                               |
-| ----------------------------------- | ------------------------------ | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FoxBase                             | `0x02`                         | Partial     | Header, schema, and records are exercised; field-level oracle coverage is limited.                                                                  |
-| dBASE III without memo              | `0x03`                         | Partial     | Fixed-width records and legacy blank/invalid values are covered; ambiguous duplicate-name schemas are rejected; exact numerics and encoding remain. |
-| dBASE III with DBT memo             | `0x83`                         | Partial     | Legacy value defaults, multi-block memos, terminators, pointers, and companion validation are covered; exact numerics and encoding remain.          |
-| dBASE IV with DBT memo              | `0x8B`                         | Verified    | Representative schema, legacy value defaults, declared block sizing, multi-block memos, and companion validation are covered.                       |
-| FoxPro and Visual FoxPro tables/FPT | `0x30`, `0x31`, `0x32`, `0xF5` | Planned     | Fixtures cover FPT, autoincrement, variable-width fields, null flags, and CP1251 text.                                                              |
-| dBASE Level 7-style tables          | `0x8C` fixture                 | Planned     | Extended header/descriptor and memo support are not implemented.                                                                                    |
-| DBF writing                         | —                              | Not planned | Read-only scope.                                                                                                                                    |
-| NDX/MDX/CDX/DCX index reading       | —                              | Not planned | Tracked separately from table reading.                                                                                                              |
+| Format/profile                      | Version bytes                  | Level       | Notes                                                                                                                                                     |
+| ----------------------------------- | ------------------------------ | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FoxBase                             | `0x02`                         | Partial     | Header, schema, and records are exercised; field-level oracle coverage is limited.                                                                        |
+| dBASE III without memo              | `0x03`                         | Partial     | Fixed-width records, legacy blank/invalid values, and opt-in exact numerics are covered; ambiguous duplicate-name schemas are rejected; encoding remains. |
+| dBASE III with DBT memo             | `0x83`                         | Partial     | Legacy value defaults, exact numerics, multi-block memos, terminators, pointers, and companion validation are covered; encoding remains.                  |
+| dBASE IV with DBT memo              | `0x8B`                         | Verified    | Representative schema, legacy value defaults, declared block sizing, multi-block memos, and companion validation are covered.                             |
+| FoxPro and Visual FoxPro tables/FPT | `0x30`, `0x31`, `0x32`, `0xF5` | Planned     | Fixtures cover FPT, autoincrement, variable-width fields, null flags, and CP1251 text.                                                                    |
+| dBASE Level 7-style tables          | `0x8C` fixture                 | Planned     | Extended header/descriptor and memo support are not implemented.                                                                                          |
+| DBF writing                         | —                              | Not planned | Read-only scope.                                                                                                                                          |
+| NDX/MDX/CDX/DCX index reading       | —                              | Not planned | Tracked separately from table reading.                                                                                                                    |
 
 See `test/support/fixture_manifest.ex` for per-fixture provenance, encoding,
 redistribution status, expected-value source, and normative references.

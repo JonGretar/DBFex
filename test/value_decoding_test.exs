@@ -19,6 +19,27 @@ defmodule DBF.ValueDecodingTest do
     end)
   end
 
+  test "exact numeric fields return integers or decimals according to scale" do
+    with_value_table("N", 5, ["   42", "  -12"], [open_options: [numeric: :exact]], fn db ->
+      assert {:record, %{"VALUE" => 42}} = DBF.get(db, 0)
+      assert {:record, %{"VALUE" => -12}} = DBF.get(db, 1)
+    end)
+
+    with_value_table(
+      "N",
+      5,
+      [" 1.25", "-0.10"],
+      [decimal: 2, open_options: [numeric: :exact]],
+      fn db ->
+        assert {:record, %{"VALUE" => value}} = DBF.get(db, 0)
+        assert Decimal.equal?(value, Decimal.new("1.25"))
+
+        assert {:record, %{"VALUE" => value}} = DBF.get(db, 1)
+        assert Decimal.equal?(value, Decimal.new("-0.10"))
+      end
+    )
+  end
+
   test "float fields distinguish blank, valid, and invalid values" do
     with_value_table("F", 5, ["     ", "  2.5", " 2x  "], fn db ->
       assert {:record, %{"VALUE" => nil}} = DBF.get(db, 0)
@@ -60,19 +81,20 @@ defmodule DBF.ValueDecodingTest do
     end)
   end
 
-  defp with_value_table(field_type, field_length, values, fun) do
+  defp with_value_table(field_type, field_length, values, options \\ [], fun) do
     records = Enum.map_join(values, &(" " <> &1))
 
     path =
       TestFixture.legacy_dbf(
         field_type: field_type,
         field_length: field_length,
+        decimal: Keyword.get(options, :decimal, 0),
         record_count: length(values),
         records: records
       )
       |> TestFixture.write_temp!("values.dbf")
 
-    db = DBF.open!(path)
+    db = DBF.open!(path, Keyword.get(options, :open_options, []))
 
     try do
       fun.(db)

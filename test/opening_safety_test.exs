@@ -6,7 +6,13 @@ defmodule DBF.OpeningSafetyTest do
   test "validates option names, containers, and values before opening a file" do
     missing = "test/dbf_files/does-not-exist.dbf"
 
-    for options <- [[unknown: true], [memo_file: 123], %{memo_file: nil}, [123]] do
+    for options <- [
+          [unknown: true],
+          [memo_file: 123],
+          [numeric: :money],
+          %{memo_file: nil},
+          [123]
+        ] do
       assert {:error, %DBF.DatabaseError{reason: :invalid_options}} = DBF.open(missing, options)
     end
   end

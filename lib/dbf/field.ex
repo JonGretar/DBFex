@@ -19,8 +19,16 @@ defmodule DBF.Field do
     :reserved
   ]
 
+  @type text_decoder ::
+          :character
+          | :variable_character
+          | :float
+          | :logical
+          | {:numeric, DBF.numeric_policy()}
+          | :memo
+          | :date
   @type decoder ::
-          {:text, :character | :variable_character | :float | :logical | :numeric | :memo | :date}
+          {:text, text_decoder()}
           | {:binary, :integer | :currency | :null_flags}
           | {:unsupported, binary()}
 

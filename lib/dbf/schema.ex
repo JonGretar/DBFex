@@ -15,20 +15,23 @@ defmodule DBF.Schema do
           record_length: pos_integer()
         }
 
-  @spec parse(binary(), FormatProfile.t(), Header.t()) ::
+  @spec parse(binary(), FormatProfile.t(), Header.t(), DBF.options()) ::
           {:ok, t()} | {:error, Error.t()}
-  def parse(binary, %FormatProfile{} = profile, %Header{} = header) when is_binary(binary) do
+  def parse(binary, profile, header, options \\ [])
+
+  def parse(binary, %FormatProfile{} = profile, %Header{} = header, options)
+      when is_binary(binary) and is_list(options) do
     descriptor_offset = descriptor_start(profile.field_descriptor_layout)
 
     with :ok <- validate_schema_size(binary, header, descriptor_offset),
          {:ok, fields} <-
            parse_descriptors(binary, profile.field_descriptor_layout, descriptor_offset, []),
-         {:ok, fields} <- compile_fields(fields, profile, header) do
+         {:ok, fields} <- compile_fields(fields, profile, header, options) do
       {:ok, %__MODULE__{fields: fields, record_length: header.record_length}}
     end
   end
 
-  def parse(binary, profile, header) do
+  def parse(binary, profile, header, _options) do
     {:error,
      schema_error(:invalid_schema_input, %{
        actual_bytes: byte_size_if_binary(binary),
@@ -140,13 +143,13 @@ defmodule DBF.Schema do
      }}
   end
 
-  defp compile_fields(fields, profile, header) do
+  defp compile_fields(fields, profile, header, options) do
     {compiled, record_length, names} =
       Enum.reduce(fields, {[], 1, %{}}, fn field, {compiled, offset, names} ->
         compiled_field = %Field{
           field
           | record_offset: offset,
-            decoder: ValueDecoder.compile(field, profile)
+            decoder: ValueDecoder.compile(field, profile, options)
         }
 
         descriptor_offsets = Map.get(names, field.name, [])

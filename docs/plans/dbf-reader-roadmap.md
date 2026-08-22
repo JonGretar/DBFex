@@ -305,7 +305,7 @@ crashes or resource leaks.
       type for every value.
 - [x] Define blank versus null behavior for every supported field type and
       variant. See [ADR 0004](../adr/0004-preserve-compatible-legacy-value-defaults.md).
-- [ ] Decode `N` as an integer when scale is zero and as an exact decimal when
+- [x] Decode `N` as an integer when scale is zero and as an exact decimal when
       precision matters. Because existing callers receive floats, introduce any
       more exact representation through an opt-in mode before considering a
       future breaking default.

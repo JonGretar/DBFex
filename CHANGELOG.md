@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `DBF.with_open/2,3` for callback-scoped reads with automatic resource cleanup.
+- An opt-in `numeric: :exact` policy that returns integers for scale-zero numeric fields and `Decimal` values for positive scales while preserving floats by default.
 - Documented evidence-based support levels for the available DBF variants.
 
 ### Changed

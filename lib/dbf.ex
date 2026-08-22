@@ -9,7 +9,8 @@ defmodule DBF do
   alias DBF.Resource
   alias DBF.Schema
 
-  @type option() :: {:memo_file, String.t() | nil}
+  @type numeric_policy() :: :float | :exact
+  @type option() :: {:memo_file, String.t() | nil} | {:numeric, numeric_policy()}
   @type options() :: [option()]
   @type record() :: %{optional(String.t()) => term()}
   @type record_status() :: :record | :deleted_record
@@ -32,7 +33,7 @@ defmodule DBF do
   @type close_result() :: :ok | error_result()
   @type with_open_result(result) :: result | error_result()
 
-  @default_options memo_file: nil
+  @default_options memo_file: nil, numeric: :float
 
   @moduledoc """
   Read DBASE files in Elixir.
@@ -205,7 +206,7 @@ defmodule DBF do
            |> add_error_context(filename: filename, version: version),
          {:ok, schema_binary} <- read_schema(resource, profile, header),
          {:ok, schema} <-
-           Schema.parse(schema_binary, profile, header)
+           Schema.parse(schema_binary, profile, header, options)
            |> add_error_context(filename: filename, version: version),
          {:ok, memo} <-
            initialize_memo(resource, filename, options, profile, header, schema) do
@@ -373,10 +374,22 @@ defmodule DBF do
   end
 
   defp validate_option_values(options) do
-    case Keyword.fetch!(options, :memo_file) do
-      value when is_binary(value) or is_nil(value) -> {:ok, options}
-      value -> {:error, Error.new(:invalid_options, {:invalid_memo_file, value}, %{})}
+    with :ok <- validate_memo_file(Keyword.fetch!(options, :memo_file)),
+         :ok <- validate_numeric_policy(Keyword.fetch!(options, :numeric)) do
+      {:ok, options}
     end
+  end
+
+  defp validate_memo_file(value) when is_binary(value) or is_nil(value), do: :ok
+
+  defp validate_memo_file(value) do
+    {:error, Error.new(:invalid_options, {:invalid_memo_file, value}, %{})}
+  end
+
+  defp validate_numeric_policy(value) when value in [:float, :exact], do: :ok
+
+  defp validate_numeric_policy(value) do
+    {:error, Error.new(:invalid_options, {:invalid_numeric_policy, value}, %{})}
   end
 
   defp invoke_and_close(db, fun) do
