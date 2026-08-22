@@ -1,60 +1,67 @@
 defmodule DBF.Memo do
-  @moduledoc """
-  Metadata and an open file handle for a DBF memo file.
-  """
+  @moduledoc false
 
-  alias DBF.DatabaseError
+  alias DBF.Error
+  alias DBF.Resource
 
-  defstruct [
-    :version,
-    :device,
-    :block_size
-  ]
+  @header_bytes 512
 
-  @type t :: %DBF.Memo{
-          version: integer,
-          device: File.io_device(),
-          block_size: integer
-        }
+  @enforce_keys [:family, :block_size]
+  defstruct [:family, :block_size]
 
-  @spec open(binary(), integer()) :: {:ok, DBF.Memo.t()} | {:error, DatabaseError.t()}
-  def open(path, version) when is_binary(path) and is_integer(version) do
-    if File.exists?(path) do
-      {:ok, file} = File.open(path, [:read, :binary])
-      {:ok, data} = :file.pread(file, 0, 512)
+  @type family :: :dbt_iii | :dbt_iv
+  @type t :: %__MODULE__{family: family(), block_size: pos_integer()}
 
-      <<_next_block::little-unsigned-integer-32, block_size::little-unsigned-16, _rest::binary>> =
-        data
-
+  @spec initialize(Resource.t(), family()) :: {:ok, t()} | {:error, Error.t()}
+  def initialize(resource, family) when family in [:dbt_iii, :dbt_iv] do
+    case Resource.read_exact(resource, :memo, 0, @header_bytes) do
       {:ok,
-       %__MODULE__{
-         version: version,
-         device: file,
-         block_size: if(block_size > 0, do: block_size, else: 512)
-       }}
-    else
-      {:error, DatabaseError.new(:enoent)}
+       <<_next_block::little-unsigned-integer-size(32),
+         block_size::little-unsigned-integer-size(16), _rest::binary>>} ->
+        {:ok,
+         %__MODULE__{
+           family: family,
+           block_size: if(block_size > 0, do: block_size, else: 512)
+         }}
+
+      {:error, %Error{} = error} ->
+        {:error, %Error{error | reason: :invalid_memo}}
     end
   end
 
-  @spec get_block(DBF.Memo.t(), any()) :: binary() | {:error, atom()}
-  def get_block(nil, _) do
-    {:error, DatabaseError.new(:missing_memo_file)}
+  @spec get_block(Resource.t(), t() | nil, non_neg_integer()) :: binary() | {:error, Error.t()}
+  def get_block(_resource, nil, _block_number) do
+    {:error, Error.new(:missing_memo_file, :not_acquired, %{source: :memo})}
   end
 
-  def get_block(%DBF.Memo{version: 0x83, device: dev, block_size: block_size}, block_number) do
+  def get_block(
+        resource,
+        %__MODULE__{family: :dbt_iii, block_size: block_size},
+        block_number
+      ) do
     offset = block_number * block_size
-    {:ok, raw_data} = :file.pread(dev, offset, 512)
-    raw_data |> String.replace([<<31>>], "") |> String.trim()
+
+    case Resource.read_exact(resource, :memo, offset, 512) do
+      {:ok, raw_data} -> clean_text(raw_data)
+      {:error, %Error{} = error} -> {:error, %Error{error | reason: :invalid_memo}}
+    end
   end
 
-  def get_block(%DBF.Memo{device: dev, block_size: block_size}, block_number) do
+  def get_block(resource, %__MODULE__{family: :dbt_iv, block_size: block_size}, block_number) do
     offset = block_number * block_size
 
-    {:ok, <<_type::binary-size(4), length::little-unsigned-integer-32>>} =
-      :file.pread(dev, offset, 8)
+    with {:ok, <<_type::binary-size(4), length::little-unsigned-integer-size(32)>>} <-
+           Resource.read_exact(resource, :memo, offset, 8),
+         {:ok, raw_data} <- Resource.read_exact(resource, :memo, offset + 8, length) do
+      clean_text(raw_data)
+    else
+      {:error, %Error{} = error} -> {:error, %Error{error | reason: :invalid_memo}}
+    end
+  end
 
-    {:ok, raw_data} = :file.pread(dev, offset + 8, length)
-    raw_data |> String.replace([<<31>>], "") |> String.trim()
+  defp clean_text(raw_data) do
+    raw_data
+    |> :binary.replace(<<31>>, <<>>, [:global])
+    |> String.trim()
   end
 end

@@ -5,45 +5,6 @@ defmodule DBF.KnownDefectsTest do
 
   @moduletag known_defect: true
 
-  describe "Phase 1 failure-safe opening" do
-    test "options are validated before opening the DBF" do
-      assert {:error, %DBF.DatabaseError{reason: :invalid_options}} =
-               DBF.open("test/dbf_files/does-not-exist.dbf", unknown: true)
-    end
-
-    test "invalid option values return a database error" do
-      assert {:error, %DBF.DatabaseError{reason: :invalid_options}} =
-               DBF.open("test/dbf_files/bayarea_zipcodes.dbf", memo_file: 123)
-    end
-
-    test "open! raises only DatabaseError for a missing file" do
-      assert_raise DBF.DatabaseError, fn ->
-        DBF.open!("test/dbf_files/does-not-exist.dbf")
-      end
-    end
-
-    test "a required missing memo fails during opening" do
-      assert {:error, %DBF.DatabaseError{reason: :missing_memo_file}} =
-               DBF.open("test/dbf_files/dbase_83_missing_memo.dbf")
-    end
-
-    test "truncated inputs return contextual database errors" do
-      for {binary, expected_reason} <- [
-            {<<>>, :invalid_header},
-            {<<0x03>>, :invalid_header},
-            {<<0x03, 124, 1, 1>>, :invalid_header}
-          ] do
-        path = TestFixture.write_temp!(binary)
-
-        try do
-          assert {:error, %DBF.DatabaseError{reason: ^expected_reason}} = DBF.open(path)
-        after
-          TestFixture.cleanup(path)
-        end
-      end
-    end
-  end
-
   describe "Phase 2 structural record correctness" do
     setup do
       db = DBF.open!("test/dbf_files/bayarea_zipcodes.dbf")

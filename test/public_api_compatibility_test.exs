@@ -1,6 +1,7 @@
 defmodule DBF.PublicAPICompatibilityTest do
   use ExUnit.Case
 
+  alias DBF.Resource
   alias DBF.TestFixture
 
   @zipcodes "test/dbf_files/bayarea_zipcodes.dbf"
@@ -10,6 +11,7 @@ defmodule DBF.PublicAPICompatibilityTest do
   describe "opening and closing" do
     test "open/1 and open/2 return an open database" do
       assert {:ok, db1} = DBF.open(@zipcodes)
+      assert :ok = DBF.close(db1)
       assert :ok = DBF.close(db1)
 
       assert {:ok, db2} = DBF.open(@zipcodes, [])
@@ -25,19 +27,16 @@ defmodule DBF.PublicAPICompatibilityTest do
     end
 
     test "with_open/2 returns the callback result and closes the database" do
-      device = DBF.with_open(@zipcodes, fn db -> Map.fetch!(db, :device) end)
+      resource = DBF.with_open(@zipcodes, & &1.resource)
 
-      assert {:error, _reason} = :file.pread(device, 0, 1)
+      refute Resource.open?(resource)
     end
 
-    test "with_open/3 closes both the table and memo resources" do
-      {table_device, memo_device} =
-        DBF.with_open(@dbase3_memo, [memo_file: @dbase3_memo_file], fn db ->
-          {Map.fetch!(db, :device), db |> Map.fetch!(:memo_file) |> Map.fetch!(:device)}
-        end)
+    test "with_open/3 closes the table and memo resource" do
+      resource =
+        DBF.with_open(@dbase3_memo, [memo_file: @dbase3_memo_file], & &1.resource)
 
-      assert {:error, _table_reason} = :file.pread(table_device, 0, 1)
-      assert {:error, _memo_reason} = :file.pread(memo_device, 0, 1)
+      refute Resource.open?(resource)
     end
 
     test "with_open does not invoke the callback when opening fails" do
@@ -52,13 +51,13 @@ defmodule DBF.PublicAPICompatibilityTest do
 
       assert_raise RuntimeError, "callback failed", fn ->
         DBF.with_open(@zipcodes, fn db ->
-          send(parent, {:device, Map.fetch!(db, :device)})
+          send(parent, {:resource, db.resource})
           raise "callback failed"
         end)
       end
 
-      assert_receive {:device, device}
-      assert {:error, _reason} = :file.pread(device, 0, 1)
+      assert_receive {:resource, resource}
+      refute Resource.open?(resource)
     end
 
     test "an explicit memo path is accepted" do
@@ -73,7 +72,7 @@ defmodule DBF.PublicAPICompatibilityTest do
       assert {:error,
               %DBF.DatabaseError{
                 reason: :unsupported_version,
-                further_info: "FoxPro with memo file"
+                context: %{version: 0xF5}
               }} = DBF.open("test/dbf_files/dbase_f5.dbf")
 
       assert_raise DBF.DatabaseError, fn ->

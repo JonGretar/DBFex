@@ -1,9 +1,13 @@
 defmodule DBF do
   alias DBF.Database
   alias DBF.DatabaseError
+  alias DBF.Error
   alias DBF.Field
+  alias DBF.FormatProfile
+  alias DBF.Header
   alias DBF.Memo
   alias DBF.Record
+  alias DBF.Resource
 
   @type option() :: {:memo_file, String.t() | nil}
   @type options() :: [option()]
@@ -28,10 +32,7 @@ defmodule DBF do
   @type close_result() :: :ok | error_result()
   @type with_open_result(result) :: result | error_result()
 
-  @default_options [
-    memo_file: nil
-    # allow_missing_memo: false
-  ]
+  @default_options memo_file: nil
 
   @moduledoc """
   Read DBASE files in Elixir.
@@ -54,15 +55,21 @@ defmodule DBF do
   """
 
   @doc """
-  Open a DBase database file.
+  Opens a DBF database file.
   """
   @spec open(String.t()) :: open_result()
   @spec open(String.t(), options()) :: open_result()
   def open(filename, options \\ []) when is_binary(filename) do
-    with {:ok, db} <- create_database_struct(filename, options),
-         {:ok, db} <- Database.open_database(db),
-         {:ok, db} <- open_memo_file(db) do
-      Field.parse_fields(db)
+    case validate_options(options) do
+      {:ok, validated_options} ->
+        filename
+        |> Resource.transaction(fn resource ->
+          initialize_database(resource, filename, validated_options)
+        end)
+        |> public_result()
+
+      {:error, %Error{} = error} ->
+        public_error(error)
     end
   end
 
@@ -87,7 +94,7 @@ defmodule DBF do
       when is_binary(filename) and is_function(fun, 1) do
     case open(filename, options) do
       {:ok, db} -> invoke_and_close(db, fun)
-      {:error, _error} = error -> error
+      {:error, %DatabaseError{}} = error -> error
     end
   end
 
@@ -99,24 +106,25 @@ defmodule DBF do
   def open!(filename, options \\ []) when is_binary(filename) do
     case open(filename, options) do
       {:ok, db} -> db
-      {:error, error} -> raise error
+      {:error, %DatabaseError{} = error} -> raise error
     end
   end
 
   @doc """
-  Closes the file access.
+  Closes all resources owned by an open database.
+
+  Closing the same database more than once is safe.
   """
   @spec close(Database.t()) :: close_result()
-  def close(%Database{device: dev} = db) when is_struct(db, Database) do
-    if db.memo_file do
-      File.close(db.memo_file.device)
+  def close(%Database{resource: resource}) do
+    case Resource.close(resource) do
+      :ok -> :ok
+      {:error, %Error{} = error} -> public_error(error)
     end
-
-    File.close(dev)
   end
 
   @doc """
-  Get a record by number.
+  Gets a record by its zero-based physical index.
   """
   @spec get(Database.t(), non_neg_integer()) :: record_result()
   def get(%Database{number_of_records: total}, record_number) when record_number >= total do
@@ -124,73 +132,165 @@ defmodule DBF do
   end
 
   def get(
-        %Database{device: dev, record_bytes: record_bytes, header_bytes: header_bytes} = db,
+        %Database{resource: resource, record_bytes: record_bytes, header_bytes: header_bytes} =
+          db,
         record_number
       ) do
     offset = header_bytes + record_number * record_bytes
-    {:ok, <<raw_type::binary-size(1), data::binary>>} = :file.pread(dev, offset, record_bytes)
 
-    type =
-      case raw_type do
-        " " -> :record
-        "*" -> :deleted_record
-        _ -> :unknown
-      end
+    case Resource.read_exact(resource, :table, offset, record_bytes) do
+      {:ok, <<raw_type::binary-size(1), data::binary>>} ->
+        type =
+          case raw_type do
+            " " -> :record
+            "*" -> :deleted_record
+            _other -> :unknown
+          end
 
-    {type, Record.parse_record(db, data)}
-  end
+        {type, Record.parse_record(db, data)}
 
-  @spec has_memo_file?(Database.t()) :: boolean()
-  def has_memo_file?(%Database{memo_file: nil}), do: false
-  def has_memo_file?(%Database{memo_file: _}), do: true
-
-  defp open_memo_file(%Database{version: version} = db) do
-    case search_memo_file(db) do
-      nil ->
-        {:ok, db}
-
-      memo_filename ->
-        {:ok, memo_file} = Memo.open(memo_filename, version)
-        {:ok, %Database{db | memo_file: memo_file}}
-    end
-  end
-
-  @spec search_memo_file(Database.t()) :: String.t() | nil
-  defp search_memo_file(db) when is_struct(db) do
-    case options(db, :memo_file) do
-      nil ->
-        search_memo_file_wildly(db.filename)
-
-      memo_filename when is_binary(memo_filename) ->
-        memo_filename
-    end
-  end
-
-  defp search_memo_file_wildly(filename) do
-    search_path = (filename |> Path.rootname()) <> ".{fpt,FPT,dbt,DBT}"
-
-    case Path.wildcard(search_path) do
-      [] -> nil
-      memo_file_list when is_list(memo_file_list) -> hd(memo_file_list)
+      {:error, %Error{} = error} ->
+        error
+        |> Error.add_context(%{record_number: record_number, offset: offset, version: db.version})
+        |> public_error()
     end
   end
 
   @doc false
-  @spec options(DBF.Database.t(), atom()) :: any()
-  def options(%Database{options: options}, key) do
-    if Keyword.has_key?(options, key) do
-      Keyword.get(options, key)
+  @spec has_memo_file?(Database.t()) :: boolean()
+  def has_memo_file?(%Database{memo_file: nil}), do: false
+  def has_memo_file?(%Database{memo_file: _memo}), do: true
+
+  @doc false
+  @spec options(Database.t(), atom()) :: term()
+  def options(%Database{options: options}, key), do: Keyword.get(options, key)
+
+  defp initialize_database(resource, filename, options) do
+    with {:ok, file_size} <- Resource.size(resource, :table),
+         {:ok, version} <- read_version(resource),
+         {:ok, profile} <- FormatProfile.select(version) |> add_error_context(filename: filename),
+         {:ok, header_binary} <-
+           read_structure(resource, 0, Header.required_bytes(profile), :invalid_header),
+         {:ok, header} <-
+           Header.parse(header_binary, profile, file_size)
+           |> add_error_context(filename: filename, version: version),
+         {:ok, schema_binary} <- read_schema(resource, profile, header),
+         {:ok, fields} <-
+           Field.parse(schema_binary, profile, header)
+           |> add_error_context(filename: filename, version: version),
+         {:ok, memo} <- initialize_memo(resource, filename, options, profile) do
+      {:ok,
+       %Database{
+         resource: resource,
+         filename: filename,
+         memo_file: memo,
+         profile: profile,
+         version: version,
+         options: options,
+         last_updated: header.date,
+         number_of_records: header.record_count,
+         header_bytes: header.header_length,
+         record_bytes: header.record_length,
+         table_flags: header.table_flags,
+         language_driver: header.language_driver,
+         fields: fields
+       }}
+    end
+  end
+
+  defp read_version(resource) do
+    case read_structure(resource, 0, 1, :invalid_header) do
+      {:ok, <<version>>} -> {:ok, version}
+      {:error, %Error{} = error} -> {:error, error}
+    end
+  end
+
+  defp read_schema(resource, profile, header) do
+    start = descriptor_start(profile.field_descriptor_layout)
+    length = header.header_length - start
+    read_structure(resource, start, length, :invalid_schema)
+  end
+
+  defp read_structure(resource, offset, length, reason) do
+    case Resource.read_exact(resource, :table, offset, length) do
+      {:ok, binary} -> {:ok, binary}
+      {:error, %Error{} = error} -> {:error, %Error{error | reason: reason}}
+    end
+  end
+
+  defp initialize_memo(_resource, _filename, options, %FormatProfile{memo_family: :none}) do
+    case Keyword.fetch!(options, :memo_file) do
+      nil ->
+        {:ok, nil}
+
+      memo_path ->
+        {:error, Error.new(:invalid_options, :memo_not_supported, %{memo_file: memo_path})}
+    end
+  end
+
+  defp initialize_memo(resource, filename, options, %FormatProfile{} = profile) do
+    paths = memo_paths(filename, Keyword.fetch!(options, :memo_file))
+    acquire_and_initialize_memo(resource, paths, profile, nil)
+  end
+
+  defp acquire_and_initialize_memo(_resource, [], profile, last_error) do
+    error =
+      last_error ||
+        Error.new(:missing_memo_file, :enoent, %{source: :memo, version: profile.version})
+
+    {:error, Error.add_context(error, %{version: profile.version})}
+  end
+
+  defp acquire_and_initialize_memo(resource, [path | paths], profile, _last_error) do
+    case Resource.acquire_memo(resource, path) do
+      {:ok, ^resource} ->
+        Memo.initialize(resource, profile.memo_family)
+        |> add_error_context(filename: path, version: profile.version)
+
+      {:error, %Error{reason: :missing_memo_file} = error} ->
+        acquire_and_initialize_memo(resource, paths, profile, error)
+
+      {:error, %Error{} = error} ->
+        {:error, Error.add_context(error, %{version: profile.version})}
+    end
+  end
+
+  defp memo_paths(_filename, memo_path) when is_binary(memo_path), do: [memo_path]
+
+  defp memo_paths(filename, nil) do
+    root = Path.rootname(filename)
+    [root <> ".dbt", root <> ".DBT"]
+  end
+
+  defp validate_options(options) when is_list(options) do
+    if Keyword.keyword?(options) do
+      case Keyword.validate(options, @default_options) do
+        {:ok, validated} -> validate_option_values(validated)
+        {:error, keys} -> {:error, Error.new(:invalid_options, {:unknown_options, keys}, %{})}
+      end
     else
-      Keyword.get(@default_options, key)
+      {:error, Error.new(:invalid_options, :not_a_keyword_list, %{})}
+    end
+  end
+
+  defp validate_options(_options) do
+    {:error, Error.new(:invalid_options, :not_a_keyword_list, %{})}
+  end
+
+  defp validate_option_values(options) do
+    case Keyword.fetch!(options, :memo_file) do
+      value when is_binary(value) or is_nil(value) -> {:ok, options}
+      value -> {:error, Error.new(:invalid_options, {:invalid_memo_file, value}, %{})}
     end
   end
 
   defp invoke_and_close(db, fun) do
     result = fun.(db)
 
-    db
-    |> close()
-    |> finish_with_close(result)
+    case close(db) do
+      :ok -> result
+      {:error, %DatabaseError{}} = error -> error
+    end
   catch
     kind, reason ->
       stacktrace = __STACKTRACE__
@@ -198,25 +298,19 @@ defmodule DBF do
       :erlang.raise(kind, reason, stacktrace)
   end
 
-  # Current valid file handles infer `:ok`; keep the error branch for the public
-  # close contract and the Phase 1 resource implementation.
-  @dialyzer {:nowarn_function, finish_with_close: 2}
-  @spec finish_with_close(close_result(), result) :: with_open_result(result) when result: term()
-  defp finish_with_close(:ok, result), do: result
-  defp finish_with_close({:error, _reason} = error, _result), do: error
+  defp public_result({:ok, value}), do: {:ok, value}
+  defp public_result({:error, %Error{} = error}), do: public_error(error)
 
-  defp create_database_struct(filename, options) do
-    with {:ok, file} <- File.open(filename, [:read, :binary]),
-         {:ok, validated_options} <- validate_options(options) do
-      {:ok, %Database{filename: filename, device: file, options: validated_options}}
-    end
+  defp public_error(%Error{} = error) do
+    {:error, DatabaseError.from_internal(error)}
   end
 
-  defp validate_options(option) do
-    # TODO: This needs to be fixed to be modern
-    case Keyword.validate(option, @default_options) do
-      {:ok, result} -> {:ok, result}
-      {:error, _} -> {:error, DatabaseError.new(:invalid_option)}
-    end
+  defp add_error_context({:ok, _value} = result, _context), do: result
+
+  defp add_error_context({:error, %Error{} = error}, context) do
+    {:error, Error.add_context(error, context)}
   end
+
+  defp descriptor_start(:foxbase_16), do: 8
+  defp descriptor_start(:dbase_legacy_32), do: 32
 end
