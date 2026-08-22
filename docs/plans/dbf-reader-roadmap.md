@@ -314,18 +314,20 @@ crashes or resource leaks.
       invalid or blank values. Visual FoxPro timestamps remain in Phase 4.
 - [ ] Distinguish text memo, binary memo/general, character, and binary field
       types.
-- [ ] Map known language-driver IDs to documented code pages.
-- [ ] Add a deliberate encoding option for missing or incorrect driver IDs.
-- [ ] Decide among strict error, replacement, and raw-binary policies; do not
-      silently guess from content.
-- [ ] Decode field names, character fields, and text memos consistently while
+- [x] Map known language-driver IDs to documented code pages.
+- [x] Add a deliberate encoding option for missing or incorrect driver IDs.
+- [x] Decide among strict error, replacement, and raw-binary policies; do not
+      silently guess from content. See
+      [ADR 0005](../adr/0005-use-explicit-text-encoding-policies.md).
+- [x] Decode field names, character fields, and text memos consistently while
       leaving binary values untouched.
-- [ ] Turn `cp1251.dbf` into a regression test and add at least one Western
-      single-byte code-page fixture.
-- [ ] Document the optional encoding dependency or implement only the small,
-      explicitly supported mapping set.
-- [ ] Add strict and permissive data-decoding policies only after their exact
-      result semantics are documented.
+- [x] Turn `cp1251.dbf` into a decoder-level regression without enabling its
+      planned Visual FoxPro profile, and exercise the Western `0x57` fixture and
+      Windows-1252 mapping.
+- [x] Implement only the small, explicitly supported Windows-1251 and
+      Windows-1252 mapping set; do not require an encoding dependency.
+- [x] Add strict, replacement, and raw text-decoding policies after documenting
+      their exact result semantics.
 
 **Exit criterion:** Adding a format changes one profile and its decoders rather
 than conditionals throughout the project; non-UTF-8 text is predictable, binary

@@ -5,6 +5,7 @@ defmodule DBF.ValueDecoder do
   alias DBF.Field
   alias DBF.FormatProfile
   alias DBF.Memo
+  alias DBF.TextDecoder
 
   @spec compile(Field.t(), FormatProfile.t(), DBF.options()) :: Field.decoder()
   def compile(%Field{type: "C"}, %FormatProfile{}, _options), do: {:text, :character}
@@ -26,11 +27,16 @@ defmodule DBF.ValueDecoder do
   @spec decode(DBF.Database.t(), Field.t(), binary()) :: term() | {:error, Error.t()}
   def decode(_db, _field, ""), do: nil
 
-  def decode(_db, %{decoder: {:text, :character}}, value), do: String.trim(value)
-  def decode(_db, %{decoder: {:text, :variable_character}}, value), do: String.trim(value)
+  def decode(db, %{decoder: {:text, :character}}, value) do
+    decode_text(db.text_decoder, value, :both)
+  end
+
+  def decode(db, %{decoder: {:text, :variable_character}}, value) do
+    decode_text(db.text_decoder, value, :both)
+  end
 
   def decode(_db, %{decoder: {:text, :float}}, value) do
-    trimmed = String.trim(value)
+    trimmed = TextDecoder.trim(value, :both)
 
     case Float.parse(trimmed) do
       {number, ""} -> number
@@ -59,14 +65,14 @@ defmodule DBF.ValueDecoder do
   end
 
   def decode(_db, %{decoder: {:text, {:numeric, :float}}}, value) do
-    case value |> String.trim() |> Float.parse() do
+    case value |> TextDecoder.trim(:both) |> Float.parse() do
       {number, ""} -> number
       _invalid -> nil
     end
   end
 
   def decode(_db, %{decoder: {:text, {:numeric, :exact}}, decimal: 0}, value) do
-    case value |> String.trim() |> Integer.parse() do
+    case value |> TextDecoder.trim(:both) |> Integer.parse() do
       {integer, ""} -> integer
       _invalid -> nil
     end
@@ -77,21 +83,27 @@ defmodule DBF.ValueDecoder do
         %{decoder: {:text, {:numeric, :exact}}, length: length},
         value
       ) do
-    case Decimal.parse(String.trim(value), max_digits: length, max_exponent: length) do
+    case Decimal.parse(TextDecoder.trim(value, :both),
+           max_digits: length,
+           max_exponent: length
+         ) do
       {%Decimal{} = decimal, ""} -> decimal
       _invalid -> nil
     end
   end
 
   def decode(db, %{decoder: {:text, :memo}}, value) do
-    new_value = String.trim(value)
+    new_value = TextDecoder.trim(value, :both)
 
     case Integer.parse(new_value) do
       {_block, rest} when rest != "" ->
         {:error, Error.new(:invalid_memo, :invalid_memo_pointer, %{raw_pointer: new_value})}
 
       {block, ""} ->
-        Memo.get_block(db.resource, db.memo_file, block)
+        case Memo.get_block(db.resource, db.memo_file, block) do
+          {:error, %Error{}} = error -> error
+          memo -> decode_text(db.text_decoder, memo, :none)
+        end
 
       :error when new_value == "" ->
         nil
@@ -123,6 +135,13 @@ defmodule DBF.ValueDecoder do
 
   def decode(_db, _field, _value) do
     {:error, Error.new(:unsupported_field_type, nil, %{})}
+  end
+
+  defp decode_text(text_decoder, value, trim) do
+    case TextDecoder.decode(text_decoder, value, trim) do
+      {:ok, decoded} -> decoded
+      {:error, %Error{}} = error -> error
+    end
   end
 
   defp invalid_value(message) do

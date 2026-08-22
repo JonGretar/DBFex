@@ -5,14 +5,16 @@ defmodule DBF.Schema do
   alias DBF.Field
   alias DBF.FormatProfile
   alias DBF.Header
+  alias DBF.TextDecoder
   alias DBF.ValueDecoder
 
-  @enforce_keys [:fields, :record_length]
-  defstruct [:fields, :record_length]
+  @enforce_keys [:fields, :record_length, :text_decoder]
+  defstruct [:fields, :record_length, :text_decoder]
 
   @type t :: %__MODULE__{
           fields: [Field.t()],
-          record_length: pos_integer()
+          record_length: pos_integer(),
+          text_decoder: TextDecoder.t()
         }
 
   @spec parse(binary(), FormatProfile.t(), Header.t(), DBF.options()) ::
@@ -23,11 +25,23 @@ defmodule DBF.Schema do
       when is_binary(binary) and is_list(options) do
     descriptor_offset = descriptor_start(profile.field_descriptor_layout)
 
-    with :ok <- validate_schema_size(binary, header, descriptor_offset),
+    with {:ok, text_decoder} <- TextDecoder.compile(header.language_driver, options),
+         :ok <- validate_schema_size(binary, header, descriptor_offset),
          {:ok, fields} <-
-           parse_descriptors(binary, profile.field_descriptor_layout, descriptor_offset, []),
+           parse_descriptors(
+             binary,
+             profile.field_descriptor_layout,
+             text_decoder,
+             descriptor_offset,
+             []
+           ),
          {:ok, fields} <- compile_fields(fields, profile, header, options) do
-      {:ok, %__MODULE__{fields: fields, record_length: header.record_length}}
+      {:ok,
+       %__MODULE__{
+         fields: fields,
+         record_length: header.record_length,
+         text_decoder: text_decoder
+       }}
     end
   end
 
@@ -66,15 +80,21 @@ defmodule DBF.Schema do
     end
   end
 
-  defp parse_descriptors(<<0x0D, _padding::binary>>, _layout, _offset, fields) do
+  defp parse_descriptors(
+         <<0x0D, _padding::binary>>,
+         _layout,
+         _text_decoder,
+         _offset,
+         fields
+       ) do
     {:ok, Enum.reverse(fields)}
   end
 
-  defp parse_descriptors(<<>>, _layout, offset, _fields) do
+  defp parse_descriptors(<<>>, _layout, _text_decoder, offset, _fields) do
     {:error, schema_error(:missing_descriptor_terminator, %{offset: offset})}
   end
 
-  defp parse_descriptors(binary, layout, offset, fields) do
+  defp parse_descriptors(binary, layout, text_decoder, offset, fields) do
     size = descriptor_size(layout)
 
     if byte_size(binary) < size do
@@ -87,8 +107,8 @@ defmodule DBF.Schema do
     else
       <<descriptor::binary-size(size), rest::binary>> = binary
 
-      with {:ok, field} <- decode_descriptor(descriptor, layout, offset) do
-        parse_descriptors(rest, layout, offset + size, [field | fields])
+      with {:ok, field} <- decode_descriptor(descriptor, layout, text_decoder, offset) do
+        parse_descriptors(rest, layout, text_decoder, offset + size, [field | fields])
       end
     end
   end
@@ -99,22 +119,25 @@ defmodule DBF.Schema do
          <<raw_name::binary-size(11), type::binary-size(1), length, reserved::binary-size(3)>> =
            raw,
          :foxbase_16,
+         text_decoder,
          offset
        ) do
-    {:ok,
-     %Field{
-       name: decode_name(raw_name),
-       type: type,
-       length: length,
-       decimal: 0,
-       address: nil,
-       flags: nil,
-       work_area: nil,
-       set_fields_flag: nil,
-       descriptor_offset: offset,
-       raw_descriptor: raw,
-       reserved: reserved
-     }}
+    with {:ok, name} <- decode_name(raw_name, text_decoder, offset) do
+      {:ok,
+       %Field{
+         name: name,
+         type: type,
+         length: length,
+         decimal: 0,
+         address: nil,
+         flags: nil,
+         work_area: nil,
+         set_fields_flag: nil,
+         descriptor_offset: offset,
+         raw_descriptor: raw,
+         reserved: reserved
+       }}
+    end
   end
 
   # dBASE III/IV descriptor reference:
@@ -125,22 +148,25 @@ defmodule DBF.Schema do
            work_area, reserved_2::binary-size(2), set_fields_flag,
            reserved_3::binary-size(8)>> = raw,
          :dbase_legacy_32,
+         text_decoder,
          offset
        ) do
-    {:ok,
-     %Field{
-       name: decode_name(raw_name),
-       type: type,
-       length: length,
-       decimal: decimal,
-       address: address,
-       flags: nil,
-       work_area: work_area,
-       set_fields_flag: set_fields_flag,
-       descriptor_offset: offset,
-       raw_descriptor: raw,
-       reserved: reserved_1 <> reserved_2 <> reserved_3
-     }}
+    with {:ok, name} <- decode_name(raw_name, text_decoder, offset) do
+      {:ok,
+       %Field{
+         name: name,
+         type: type,
+         length: length,
+         decimal: decimal,
+         address: address,
+         flags: nil,
+         work_area: work_area,
+         set_fields_flag: set_fields_flag,
+         descriptor_offset: offset,
+         raw_descriptor: raw,
+         reserved: reserved_1 <> reserved_2 <> reserved_3
+       }}
+    end
   end
 
   defp compile_fields(fields, profile, header, options) do
@@ -194,23 +220,19 @@ defmodule DBF.Schema do
     end
   end
 
-  defp decode_name(raw_name) do
+  defp decode_name(raw_name, text_decoder, descriptor_offset) do
     name =
       case :binary.match(raw_name, <<0>>) do
         {index, 1} -> binary_part(raw_name, 0, index)
         :nomatch -> raw_name
       end
 
-    trim_trailing_spaces(name)
-  end
+    case TextDecoder.decode(text_decoder, name, :trailing) do
+      {:ok, decoded} ->
+        {:ok, decoded}
 
-  defp trim_trailing_spaces(<<>>), do: <<>>
-
-  defp trim_trailing_spaces(binary) do
-    if :binary.last(binary) == 0x20 do
-      trim_trailing_spaces(binary_part(binary, 0, byte_size(binary) - 1))
-    else
-      binary
+      {:error, %Error{} = error} ->
+        {:error, Error.add_context(error, %{offset: descriptor_offset, source: :field_name})}
     end
   end
 

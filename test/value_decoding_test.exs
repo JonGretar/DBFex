@@ -10,6 +10,58 @@ defmodule DBF.ValueDecodingTest do
     end)
   end
 
+  test "character field names and values use the table language driver" do
+    with_value_table(
+      "C",
+      4,
+      [<<0xE9, "   ">>],
+      [field_name: <<0xC9>>, language_driver: 0x57],
+      fn db ->
+        assert {:record, %{"É" => "é"}} = DBF.get(db, 0)
+      end
+    )
+  end
+
+  test "a caller encoding overrides a missing or incorrect language driver" do
+    with_value_table(
+      "C",
+      4,
+      [<<0xCF, 0xF0, "  ">>],
+      [language_driver: 0, open_options: [encoding: :windows_1251]],
+      fn db ->
+        assert {:record, %{"VALUE" => "Пр"}} = DBF.get(db, 0)
+      end
+    )
+  end
+
+  test "character decoding applies strict, replacement, and raw error policies" do
+    value = <<0x81, "   ">>
+
+    with_value_table(
+      "C",
+      4,
+      [value],
+      [language_driver: 0x03, open_options: [encoding_errors: :strict]],
+      fn db ->
+        assert {:error, %DBF.DatabaseError{reason: :invalid_encoding}} = DBF.get(db, 0)
+      end
+    )
+
+    with_value_table(
+      "C",
+      4,
+      [value],
+      [language_driver: 0x03, open_options: [encoding_errors: :replace]],
+      fn db ->
+        assert {:record, %{"VALUE" => "�"}} = DBF.get(db, 0)
+      end
+    )
+
+    with_value_table("C", 4, [value], [language_driver: 0x03], fn db ->
+      assert {:record, %{"VALUE" => <<0x81>>}} = DBF.get(db, 0)
+    end)
+  end
+
   test "numeric fields preserve floats while rejecting partial values" do
     with_value_table("N", 5, ["     ", "   42", " 1.25", " 12xx"], fn db ->
       assert {:record, %{"VALUE" => nil}} = DBF.get(db, 0)
@@ -87,8 +139,10 @@ defmodule DBF.ValueDecodingTest do
     path =
       TestFixture.legacy_dbf(
         field_type: field_type,
+        field_name: Keyword.get(options, :field_name, "VALUE"),
         field_length: field_length,
         decimal: Keyword.get(options, :decimal, 0),
+        language_driver: Keyword.get(options, :language_driver, 0),
         record_count: length(values),
         records: records
       )

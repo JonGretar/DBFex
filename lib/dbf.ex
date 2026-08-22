@@ -10,7 +10,13 @@ defmodule DBF do
   alias DBF.Schema
 
   @type numeric_policy() :: :float | :exact
-  @type option() :: {:memo_file, String.t() | nil} | {:numeric, numeric_policy()}
+  @type encoding() :: :auto | :raw | :windows_1251 | :windows_1252
+  @type encoding_error_policy() :: :strict | :replace | :raw
+  @type option() ::
+          {:memo_file, String.t() | nil}
+          | {:numeric, numeric_policy()}
+          | {:encoding, encoding()}
+          | {:encoding_errors, encoding_error_policy()}
   @type options() :: [option()]
   @type record() :: %{optional(String.t()) => term()}
   @type record_status() :: :record | :deleted_record
@@ -27,13 +33,17 @@ defmodule DBF do
           | :invalid_schema
           | :invalid_record
           | :invalid_memo
+          | :invalid_encoding
   @type error_result() :: {:error, DatabaseError.t()}
   @type record_result() :: {record_status(), record()} | error_result()
   @type open_result() :: {:ok, Database.t()} | error_result()
   @type close_result() :: :ok | error_result()
   @type with_open_result(result) :: result | error_result()
 
-  @default_options memo_file: nil, numeric: :float
+  @default_options memo_file: nil,
+                   numeric: :float,
+                   encoding: :auto,
+                   encoding_errors: :raw
 
   @moduledoc """
   Read DBASE files in Elixir.
@@ -225,6 +235,7 @@ defmodule DBF do
          table_flags: header.table_flags,
          language_driver: header.language_driver,
          schema: schema,
+         text_decoder: schema.text_decoder,
          fields: schema.fields
        }}
     end
@@ -375,7 +386,9 @@ defmodule DBF do
 
   defp validate_option_values(options) do
     with :ok <- validate_memo_file(Keyword.fetch!(options, :memo_file)),
-         :ok <- validate_numeric_policy(Keyword.fetch!(options, :numeric)) do
+         :ok <- validate_numeric_policy(Keyword.fetch!(options, :numeric)),
+         :ok <- validate_encoding(Keyword.fetch!(options, :encoding)),
+         :ok <- validate_encoding_errors(Keyword.fetch!(options, :encoding_errors)) do
       {:ok, options}
     end
   end
@@ -390,6 +403,20 @@ defmodule DBF do
 
   defp validate_numeric_policy(value) do
     {:error, Error.new(:invalid_options, {:invalid_numeric_policy, value}, %{})}
+  end
+
+  defp validate_encoding(value)
+       when value in [:auto, :raw, :windows_1251, :windows_1252],
+       do: :ok
+
+  defp validate_encoding(value) do
+    {:error, Error.new(:invalid_options, {:invalid_encoding, value}, %{})}
+  end
+
+  defp validate_encoding_errors(value) when value in [:strict, :replace, :raw], do: :ok
+
+  defp validate_encoding_errors(value) do
+    {:error, Error.new(:invalid_options, {:invalid_encoding_errors, value}, %{})}
   end
 
   defp invoke_and_close(db, fun) do

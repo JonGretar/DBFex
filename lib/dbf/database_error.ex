@@ -39,6 +39,7 @@ defmodule DBF.DatabaseError do
   defp format_reason(:invalid_schema), do: "Invalid database schema."
   defp format_reason(:invalid_record), do: "Invalid database record."
   defp format_reason(:invalid_memo), do: "Invalid memo file."
+  defp format_reason(:invalid_encoding), do: "Invalid text encoding."
   defp format_reason(reason), do: "Database error: #{inspect(reason)}."
 
   defp format_context(context) when map_size(context) == 0, do: ""

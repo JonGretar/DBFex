@@ -20,6 +20,10 @@ evidence; never infer complete support from the version byte alone.
   profile does.
 - Fixed-width names and values are bytes until decoded. NUL padding, space
   padding, and text encoding are separate concerns.
+- Microsoft documents language-driver `0xC9` as Windows-1251 and `0x03` as
+  Windows-1252. `0x57` is commonly treated as Windows-1252 by DBF readers, while
+  some GIS tooling historically labels it ISO-8859-1; retain caller override and
+  raw policies for producer disagreements.
 - Header date bytes usually mean year since 1900, month, and day, but validate
   dates without bang functions. FoxBASE `0x02` has a different header layout.
 - Preserve raw version, table flags, language-driver ID, field flags, and

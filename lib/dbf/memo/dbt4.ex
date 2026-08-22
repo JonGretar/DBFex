@@ -4,6 +4,7 @@ defmodule DBF.Memo.DBT4 do
   alias DBF.Error
   alias DBF.Memo
   alias DBF.Resource
+  alias DBF.TextDecoder
 
   @header_bytes 512
   @default_block_size 512
@@ -133,7 +134,7 @@ defmodule DBF.Memo.DBT4 do
         :nomatch -> payload
       end
 
-    String.trim(text)
+    TextDecoder.trim(text, :whitespace)
   end
 
   defp memo_error(cause, context), do: Error.new(:invalid_memo, cause, context)

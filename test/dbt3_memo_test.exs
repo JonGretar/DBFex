@@ -25,6 +25,15 @@ defmodule DBF.Memo.DBT3Test do
     end)
   end
 
+  test "decodes textual memo bytes with the caller encoding" do
+    text = <<0xCF, 0xF0, 0xE8, 0xE2, 0xE5, 0xF2>>
+    memo = dbt3_header(2) <> text <> <<0x1A, 0x1A>> <> :binary.copy(<<0>>, 504)
+
+    with_dbt3(memo, 1, [encoding: :windows_1251], fn db ->
+      assert {:record, %{"VALUE" => "Привет"}} = DBF.get(db, 0)
+    end)
+  end
+
   test "rejects malformed textual memo pointers" do
     memo = dbt3_header(1)
 
@@ -64,7 +73,7 @@ defmodule DBF.Memo.DBT3Test do
     assert error.cause == :invalid_memo_header
   end
 
-  defp with_dbt3(memo, pointer, fun) do
+  defp with_dbt3(memo, pointer, open_options \\ [], fun) do
     pointer = if is_integer(pointer), do: Integer.to_string(pointer), else: pointer
     record = " " <> String.pad_leading(pointer, 10)
 
@@ -81,7 +90,7 @@ defmodule DBF.Memo.DBT3Test do
     File.write!(Path.rootname(path) <> ".dbt", memo)
 
     try do
-      db = DBF.open!(path)
+      db = DBF.open!(path, open_options)
 
       try do
         fun.(db)

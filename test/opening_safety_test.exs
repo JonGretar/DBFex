@@ -10,10 +10,30 @@ defmodule DBF.OpeningSafetyTest do
           [unknown: true],
           [memo_file: 123],
           [numeric: :money],
+          [encoding: :guess],
+          [encoding_errors: :ignore],
           %{memo_file: nil},
           [123]
         ] do
       assert {:error, %DBF.DatabaseError{reason: :invalid_options}} = DBF.open(missing, options)
+    end
+  end
+
+  test "strict encoding rejects missing or unknown language drivers during opening" do
+    for language_driver <- [0, 0xFF] do
+      path =
+        TestFixture.legacy_dbf(language_driver: language_driver)
+        |> TestFixture.write_temp!()
+
+      try do
+        assert {:error,
+                %DBF.DatabaseError{
+                  reason: :invalid_encoding,
+                  context: %{language_driver: ^language_driver}
+                }} = DBF.open(path, encoding_errors: :strict)
+      after
+        TestFixture.cleanup(path)
+      end
     end
   end
 
