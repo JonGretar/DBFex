@@ -128,7 +128,7 @@ defmodule DBF.Schema do
          name: name,
          type: type,
          length: length,
-         decimal: 0,
+         decimal: nil,
          address: nil,
          flags: nil,
          work_area: nil,

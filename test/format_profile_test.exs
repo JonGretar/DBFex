@@ -26,7 +26,7 @@ defmodule DBF.FormatProfileTest do
 
   test "profiles expose only evidenced field capabilities" do
     assert {:ok, foxbase} = FormatProfile.select(0x02)
-    assert foxbase.field_kinds == %{"C" => :character, "N" => :numeric}
+    assert foxbase.field_kinds == %{"C" => :character, "N" => :numeric_unscaled}
 
     assert {:ok, no_memo} = FormatProfile.select(0x03)
     refute Map.has_key?(no_memo.field_kinds, "M")

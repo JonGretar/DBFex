@@ -38,8 +38,10 @@ floats, or numerics.
 
 Exact numerics are available through the opt-in `numeric: :exact` policy. It
 returns integers for scale-zero `N` fields and `Decimal` values for positive
-scales. Parsing is bounded by the field width, and malformed values retain the
-compatible `nil` result. The default remains `numeric: :float`.
+scales. FoxBase's compact descriptors omit scale metadata, so integer text
+returns an integer while text containing a decimal point returns a `Decimal`.
+Parsing is bounded by the field width, and malformed values retain the compatible
+`nil` result. The default remains `numeric: :float`.
 
 Explicit null metadata and strict or richer permissive decoding require opt-in
 policies with documented result semantics. They must not silently alter the

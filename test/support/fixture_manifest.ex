@@ -53,14 +53,20 @@ defmodule DBF.FixtureManifest do
       id: :foxbase,
       files: %{
         table: "test/dbf_files/dbase_02.dbf",
-        oracle: ["test/dbf_files/dbase_02_summary.txt"]
+        oracle: [
+          "test/dbf_files/dbase_02_summary.txt",
+          "test/dbf_files/dbase_02_records.exs"
+        ]
       },
       profile: %{format: :foxbase, version: 0x02, memo: :none, encoding: :unspecified},
       provenance: @shared_provenance,
-      support: :partial,
+      support: :verified,
       exercise: {:open, %{records: 9, fields: 14}},
-      expected_values: {:schema_sidecar, "test/dbf_files/dbase_02_summary.txt"},
-      normative_sources: [:older_xbase_secondary]
+      expected_values: {:elixir_sidecar, "test/dbf_files/dbase_02_records.exs"},
+      normative_sources: [:older_xbase_secondary],
+      notes: [
+        "All records are checked against fixed-width values derived from the documented FoxBase layout."
+      ]
     },
     %{
       id: :dbase_iii,
@@ -147,7 +153,7 @@ defmodule DBF.FixtureManifest do
       },
       profile: %{format: :dbase_iii, version: 0x83, memo: :dbt_iii, encoding: {:ldid, 0x00}},
       provenance: @shared_provenance,
-      support: :partial,
+      support: :verified,
       exercise: {:open, %{records: 67, fields: 15}},
       expected_values: {:yaml_sidecars, [0, 9]},
       normative_sources: [:dbase_iii_iv, :older_xbase_secondary],
@@ -156,14 +162,13 @@ defmodule DBF.FixtureManifest do
     %{
       id: :dbase_iii_missing_memo,
       files: %{
-        table: "test/dbf_files/dbase_83_missing_memo.dbf",
-        oracle: ["test/dbf_files/dbase_83_missing_memo_record_0.yml"]
+        table: "test/dbf_files/dbase_83_missing_memo.dbf"
       },
       profile: %{format: :dbase_iii, version: 0x83, memo: :missing_dbt, encoding: {:ldid, 0x00}},
       provenance: @shared_provenance,
       support: :verified,
       exercise: {:open_error, :missing_memo_file, 0x83},
-      expected_values: {:yaml_sidecar, "test/dbf_files/dbase_83_missing_memo_record_0.yml"},
+      expected_values: :none,
       normative_sources: [:dbase_iii_iv, :older_xbase_secondary]
     },
     %{

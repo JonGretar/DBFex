@@ -26,7 +26,8 @@ defmodule DBF.FormatProfile do
   @type field_descriptor_layout :: :foxbase_16 | :dbase_legacy_32
   @type memo_family :: :none | :dbt_iii | :dbt_iv
   @type record_layout :: :dbase_legacy
-  @type field_kind :: :character | :numeric | :float | :logical | :date | :text_memo
+  @type field_kind ::
+          :character | :numeric | :numeric_unscaled | :float | :logical | :date | :text_memo
 
   @type t :: %__MODULE__{
           version: byte(),
@@ -56,7 +57,7 @@ defmodule DBF.FormatProfile do
       field_descriptor_layout: :foxbase_16,
       memo_family: :none,
       record_layout: :dbase_legacy,
-      field_kinds: %{"C" => :character, "N" => :numeric}
+      field_kinds: %{"C" => :character, "N" => :numeric_unscaled}
     },
     0x03 => %{
       version: 0x03,

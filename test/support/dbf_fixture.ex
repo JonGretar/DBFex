@@ -18,9 +18,7 @@ defmodule DBF.TestFixture do
       when is_integer(record_index) and record_index >= 0 and byte_size(marker) == 1 do
     binary = File.read!(source_path)
 
-    <<_::binary-size(8), header_bytes::little-unsigned-integer-16,
-      record_bytes::little-unsigned-integer-16, _::binary>> = binary
-
+    {header_bytes, record_bytes} = record_layout(binary)
     offset = header_bytes + record_index * record_bytes
     <<prefix::binary-size(offset), _old_marker::binary-size(1), rest::binary>> = binary
 
@@ -62,6 +60,20 @@ defmodule DBF.TestFixture do
       type <>
       <<0::little-unsigned-integer-size(32), length, decimal>> <>
       :binary.copy(<<0>>, 14)
+  end
+
+  defp record_layout(
+         <<0x02, _record_count::little-unsigned-integer-size(16), _::binary-size(3),
+           record_bytes::little-unsigned-integer-size(16), _::binary>>
+       ) do
+    {521, record_bytes}
+  end
+
+  defp record_layout(
+         <<_::binary-size(8), header_bytes::little-unsigned-integer-size(16),
+           record_bytes::little-unsigned-integer-size(16), _::binary>>
+       ) do
+    {header_bytes, record_bytes}
   end
 
   def cleanup(path) do

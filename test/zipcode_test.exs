@@ -2,6 +2,8 @@ defmodule ZipcodeTest do
   use ExUnit.Case
   doctest DBF
 
+  @csv_oracle "test/dbf_files/bayarea_zipcodes.csv"
+
   describe "When reading the bay area zip codes file" do
     setup do
       db = DBF.open!("test/dbf_files/bayarea_zipcodes.dbf")
@@ -25,16 +27,28 @@ defmodule ZipcodeTest do
       assert DBF.get(context.db, 0)
     end
 
-    test "the first record is all that we wanted", context do
-      record = %{
-        "Area__" => 12_313_263_537.0,
-        "Length__" => 995_176.225313,
-        "PO_NAME" => "NAPA",
-        "STATE" => "CA",
-        "ZIP" => "94558"
-      }
+    test "all records match the independently generated CSV oracle", context do
+      expected =
+        @csv_oracle
+        |> File.stream!()
+        |> Stream.drop(1)
+        |> Enum.map(&parse_csv_record/1)
 
-      assert {:record, record} == DBF.get(context.db, 0)
+      assert expected ==
+               Enum.map(context.db, fn
+                 {:record, record} -> record
+               end)
+    end
+
+    test "the complete schema matches the CSV and descriptor metadata", context do
+      assert [
+               {"ZIP", "C", 5, 0},
+               {"PO_NAME", "C", 28, 0},
+               {"STATE", "C", 2, 0},
+               {"Area__", "F", 19, 11},
+               {"Length__", "F", 19, 11}
+             ] ==
+               Enum.map(context.db.fields, &{&1.name, &1.type, &1.length, &1.decimal})
     end
 
     test "it errors when requesting too high of a record ID", context do
@@ -44,6 +58,27 @@ defmodule ZipcodeTest do
 
     test "then the number of records should match the header", context do
       assert context.db.number_of_records == context.db |> Enum.to_list() |> length()
+    end
+  end
+
+  defp parse_csv_record(line) do
+    [zip, po_name, state, area, length] =
+      line
+      |> String.trim_trailing()
+      |> String.split(";")
+
+    %{
+      "ZIP" => zip,
+      "PO_NAME" => po_name,
+      "STATE" => state,
+      "Area__" => parse_float!(area),
+      "Length__" => parse_float!(length)
+    }
+  end
+
+  defp parse_float!(value) do
+    case Float.parse(value) do
+      {number, ""} -> number
     end
   end
 end

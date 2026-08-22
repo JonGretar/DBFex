@@ -23,7 +23,7 @@ defmodule DBF.Field do
           :character
           | :float
           | :logical
-          | {:numeric, DBF.numeric_policy()}
+          | {:numeric, DBF.numeric_policy() | :exact_unscaled}
           | :memo
           | :date
   @type decoder :: {:text, text_decoder()} | {:unsupported, binary()}
@@ -32,7 +32,7 @@ defmodule DBF.Field do
           name: binary(),
           type: binary(),
           length: non_neg_integer(),
-          decimal: non_neg_integer(),
+          decimal: non_neg_integer() | nil,
           address: non_neg_integer() | nil,
           flags: byte() | nil,
           work_area: byte() | nil,

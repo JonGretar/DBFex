@@ -79,16 +79,16 @@ checked-in fixtures. A recognized version byte alone does not imply support.
   not accepted yet.
 - **Not planned** — outside the scope of the read-only table reader.
 
-| Format/profile                      | Version bytes                  | Level       | Notes                                                                                                                                          |
-| ----------------------------------- | ------------------------------ | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| FoxBase                             | `0x02`                         | Partial     | Header, schema, and records are exercised; field-level oracle coverage is limited.                                                             |
-| dBASE III without memo              | `0x03`                         | Partial     | Fixed-width records, legacy values, exact numerics, and Windows-1252 text policies are covered; ambiguous duplicate-name schemas are rejected. |
-| dBASE III with DBT memo             | `0x83`                         | Partial     | Legacy values, exact numerics, language overrides, multi-block memos, pointers, and companion validation are covered.                          |
-| dBASE IV with DBT memo              | `0x8B`                         | Verified    | Representative schema and values, text policies, declared block sizing, multi-block memos, and companion validation are covered.               |
-| FoxPro and Visual FoxPro tables/FPT | `0x30`, `0x31`, `0x32`, `0xF5` | Planned     | Fixtures cover FPT, autoincrement, variable-width fields, null flags, and CP1251 text.                                                         |
-| dBASE Level 7-style tables          | `0x8C` fixture                 | Planned     | Extended header/descriptor and memo support are not implemented.                                                                               |
-| DBF writing                         | —                              | Not planned | Read-only scope.                                                                                                                               |
-| NDX/MDX/CDX/DCX index reading       | —                              | Not planned | Tracked separately from table reading.                                                                                                         |
+| Format/profile                      | Version bytes                  | Level       | Notes                                                                                                                                                           |
+| ----------------------------------- | ------------------------------ | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FoxBase                             | `0x02`                         | Verified    | All fixture records and `C`/unscaled `N` values are checked, including blanks, exact numerics, and deleted-record behavior.                                     |
+| dBASE III without memo              | `0x03`                         | Verified    | All zipcode oracle rows, the full schema, legacy value states, exact numerics, Windows-1252 policies, and ambiguous-schema rejection are covered.               |
+| dBASE III with DBT memo             | `0x83`                         | Verified    | Representative complete records, schema, exact numerics, logical states, multi-block memos, pointers, encoding overrides, and companion validation are covered. |
+| dBASE IV with DBT memo              | `0x8B`                         | Verified    | Representative schema and values, text policies, declared block sizing, multi-block memos, and companion validation are covered.                                |
+| FoxPro and Visual FoxPro tables/FPT | `0x30`, `0x31`, `0x32`, `0xF5` | Planned     | Fixtures cover FPT, autoincrement, variable-width fields, null flags, and CP1251 text.                                                                          |
+| dBASE Level 7-style tables          | `0x8C` fixture                 | Planned     | Extended header/descriptor and memo support are not implemented.                                                                                                |
+| DBF writing                         | —                              | Not planned | Read-only scope.                                                                                                                                                |
+| NDX/MDX/CDX/DCX index reading       | —                              | Not planned | Tracked separately from table reading.                                                                                                                          |
 
 See `test/support/fixture_manifest.ex` for per-fixture provenance, encoding,
 redistribution status, expected-value source, and normative references.

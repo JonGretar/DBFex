@@ -25,6 +25,13 @@ defmodule DBF.ValueDecoder do
     {:text, {:numeric, Keyword.get(options, :numeric, :float)}}
   end
 
+  defp compile_kind(:numeric_unscaled, options) do
+    case Keyword.get(options, :numeric, :float) do
+      :float -> {:text, {:numeric, :float}}
+      :exact -> {:text, {:numeric, :exact_unscaled}}
+    end
+  end
+
   @spec decode(DBF.Database.t(), Field.t(), binary()) :: term() | {:error, Error.t()}
   def decode(_db, _field, ""), do: nil
 
@@ -55,6 +62,21 @@ defmodule DBF.ValueDecoder do
     case value |> TextDecoder.trim(:both) |> Float.parse() do
       {number, ""} -> number
       _invalid -> nil
+    end
+  end
+
+  def decode(_db, %{decoder: {:text, {:numeric, :exact_unscaled}}, length: length}, value) do
+    trimmed = TextDecoder.trim(value, :both)
+
+    case Integer.parse(trimmed) do
+      {integer, ""} ->
+        integer
+
+      _not_an_integer ->
+        case Decimal.parse(trimmed, max_digits: length, max_exponent: length) do
+          {%Decimal{} = decimal, ""} -> decimal
+          _invalid -> nil
+        end
     end
   end
 

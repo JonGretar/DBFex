@@ -336,6 +336,21 @@ crashes or resource leaks.
 than conditionals throughout the project; non-UTF-8 text is predictable, binary
 values remain untouched, and callers can identify the value policy used.
 
+### Verification checkpoint before Phase 4
+
+- [x] Verify every FoxBase fixture record and advertised field kind against local
+      fixed-width oracle values.
+- [x] Verify every dBASE III zipcode record against the independent CSV oracle
+      and cover the remaining advertised legacy value states synthetically.
+- [x] Verify representative complete dBASE III DBT records, schema, exact
+      numerics, logical states, and memo behavior against independent sidecars
+      and `dbfread`.
+- [x] Promote FoxBase and both dBASE III profiles only after their fixture
+      manifests, public tests, README claims, and changelog agree.
+
+**Exit criterion:** The legacy profiles form a verified baseline before FoxPro
+and Visual FoxPro add binary fields, FPT memos, timestamps, and null metadata.
+
 ### Phase 4 — Expand formats in evidence-driven order
 
 #### 4.1 FoxPro 2.x and Visual FoxPro baseline

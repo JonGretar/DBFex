@@ -16,7 +16,7 @@ defmodule DBF.SchemaTest do
     assert field.name == "NAME"
     assert field.type == "C"
     assert field.length == 12
-    assert field.decimal == 0
+    assert field.decimal == nil
     assert field.descriptor_offset == 8
     assert field.record_offset == 1
     assert field.raw_descriptor == descriptor

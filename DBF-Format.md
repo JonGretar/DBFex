@@ -20,6 +20,9 @@ evidence; never infer complete support from the version byte alone.
   profile does.
 - Fixed-width names and values are bytes until decoded. NUL padding, space
   padding, and text encoding are separate concerns.
+- FoxBase 16-byte field descriptors contain a width but no numeric scale byte.
+  Exact numeric decoding must inspect the fixed-width value: integer text becomes
+  an integer, while a decimal point preserves a `Decimal` value.
 - Microsoft documents language-driver `0xC9` as Windows-1251 and `0x03` as
   Windows-1252. `0x57` is commonly treated as Windows-1252 by DBF readers, while
   some GIS tooling historically labels it ISO-8859-1; retain caller override and
