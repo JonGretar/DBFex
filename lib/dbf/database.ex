@@ -24,17 +24,17 @@ defmodule DBF.Database do
   ]
 
   @type t :: %__MODULE__{
-          device: pid() | {:file_descriptor, atom(), any()},
+          device: File.io_device(),
           filename: String.t(),
-          memo_file: Memo.t() | false,
+          memo_file: Memo.t() | nil,
           version: byte(),
           options: DBF.options(),
           last_updated: Date.t(),
-          number_of_records: integer,
-          header_bytes: integer,
-          record_bytes: integer,
+          number_of_records: non_neg_integer(),
+          header_bytes: non_neg_integer(),
+          record_bytes: non_neg_integer(),
           fields: [DBF.Field.t()],
-          position: integer
+          position: non_neg_integer()
         }
 
   @versions %{
@@ -144,15 +144,12 @@ end
 
 # Define the Enumerable implentation for the database.
 defimpl Enumerable, for: DBF.Database do
-  @spec count(DBF.Database.t()) :: {:ok, any()}
+  @spec count(DBF.Database.t()) :: {:ok, non_neg_integer()}
   def count(db) do
     {:ok, db.number_of_records}
   end
 
-  @spec reduce(DBF.Database.t(), {:cont, any()} | {:halt, any()} | {:suspend, any()}, any()) ::
-          {:done, any()}
-          | {:halted, any()}
-          | {:suspended, any(), ({any(), any()} -> {any(), any()} | {any(), any(), any()})}
+  @spec reduce(DBF.Database.t(), Enumerable.acc(), Enumerable.reducer()) :: Enumerable.result()
   def reduce(db, {:cont, acc}, fun) do
     if db.position == db.number_of_records do
       {:done, acc}
@@ -170,12 +167,12 @@ defimpl Enumerable, for: DBF.Database do
     {:suspended, acc, &reduce(db, &1, fun)}
   end
 
-  @spec slice(DBF.Database.t()) :: {:error, Enumerable.DBF.Database}
+  @spec slice(DBF.Database.t()) :: {:error, module()}
   def slice(_array) do
     {:error, __MODULE__}
   end
 
-  @spec member?(DBF.Database.t(), any()) :: {:error, Enumerable.DBF.Database}
+  @spec member?(DBF.Database.t(), term()) :: {:error, module()}
   def member?(_array, _element) do
     {:error, __MODULE__}
   end

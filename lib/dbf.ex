@@ -5,10 +5,27 @@ defmodule DBF do
   alias DBF.Memo
   alias DBF.Record
 
-  @type options() :: [
-          memo_file: String.t() | nil
-          # allow_missing_memo: boolean()
-        ]
+  @type option() :: {:memo_file, String.t() | nil}
+  @type options() :: [option()]
+  @type record() :: %{optional(String.t()) => term()}
+  @type record_status() :: :record | :deleted_record
+  @type error_reason() ::
+          :file_not_found
+          | :file_error
+          | :close_failed
+          | :invalid_options
+          | :invalid_record_index
+          | :unsupported_version
+          | :missing_memo_file
+          | :unsupported_field_type
+          | :invalid_header
+          | :invalid_schema
+          | :invalid_record
+          | :invalid_memo
+  @type error_result() :: {:error, DatabaseError.t()}
+  @type record_result() :: {record_status(), record()} | error_result()
+  @type open_result() :: {:ok, Database.t()} | error_result()
+  @type close_result() :: :ok | error_result()
 
   @default_options [
     memo_file: nil
@@ -52,8 +69,8 @@ defmodule DBF do
   @doc """
   Open a DBase database file.
   """
-  @spec open(String.t(), options()) ::
-          {:ok, Database.t()} | {:error, atom() | DatabaseError.t()}
+  @spec open(String.t()) :: open_result()
+  @spec open(String.t(), options()) :: open_result()
   def open(filename, options \\ []) when is_binary(filename) do
     with {:ok, db} <- create_database_struct(filename, options),
          {:ok, db} <- Database.open_database(db),
@@ -63,10 +80,10 @@ defmodule DBF do
   end
 
   @doc """
-  Same as `open/2` but throws errors
+  Same as `open/2`, but raises `DBF.DatabaseError` on failure.
   """
+  @spec open!(String.t()) :: Database.t()
   @spec open!(String.t(), options()) :: Database.t()
-  @spec open!(binary()) :: Database.t()
   def open!(filename, options \\ []) when is_binary(filename) do
     case open(filename, options) do
       {:ok, db} -> db
@@ -77,7 +94,7 @@ defmodule DBF do
   @doc """
   Closes the file access.
   """
-  @spec close(Database.t()) :: :ok | {:error, atom()}
+  @spec close(Database.t()) :: close_result()
   def close(%Database{device: dev} = db) when is_struct(db, Database) do
     if db.memo_file do
       File.close(db.memo_file.device)
@@ -89,8 +106,7 @@ defmodule DBF do
   @doc """
   Get a record by number.
   """
-  @spec get(Database.t(), integer()) ::
-          {:deleted_record, map()} | {:record, map()} | {:unknown, map()}
+  @spec get(Database.t(), non_neg_integer()) :: record_result()
   def get(%Database{number_of_records: total}, record_number) when record_number >= total do
     {:error, :record_not_found}
   end

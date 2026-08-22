@@ -1,6 +1,6 @@
 defmodule DBF.DatabaseError do
   defexception [:reason, :further_info]
-  @type t() :: %__MODULE__{reason: atom}
+  @opaque t() :: %__MODULE__{reason: DBF.error_reason(), further_info: term()}
 
   @impl true
   @spec message(DBF.DatabaseError.t()) :: String.t()
