@@ -271,7 +271,7 @@ architectural slices are:
 - [x] Introduce `DBF.Schema` to own descriptor parsing, validation, duplicate-name
       policy, and compiled record offsets. Keep `DBF.Field` as metadata for one
       field.
-- [ ] Split materially different memo algorithms into `DBF.Memo.DBT3` and
+- [x] Split materially different memo algorithms into `DBF.Memo.DBT3` and
       `DBF.Memo.DBT4` behind the profile-driven `DBF.Memo` facade. Use plain
       internal modules rather than a whole-format behavior.
 - [x] Reject negative, non-integer, and out-of-range record indexes consistently.
@@ -284,7 +284,7 @@ architectural slices are:
 - [x] Compile validated field offsets once during opening so record reads cannot
       drift from the declared record width.
 - [x] Implement the chosen duplicate-field-name policy in `DBF.Schema`.
-- [ ] Correct DBT behavior separately in `DBF.Memo.DBT3` and `DBF.Memo.DBT4`,
+- [x] Correct DBT behavior separately in `DBF.Memo.DBT3` and `DBF.Memo.DBT4`,
       including termination, block sizing, pointers, and multi-block values.
 - [ ] Implement the chosen missing-memo policy and test missing, empty,
       truncated, mismatched, and explicitly supplied memo files.
