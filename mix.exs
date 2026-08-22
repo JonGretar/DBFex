@@ -4,8 +4,8 @@ defmodule DBF.MixProject do
   def project do
     [
       app: :dbf_ex,
-      version: "0.1.0",
-      elixir: "~> 1.18",
+      version: "0.2.0",
+      elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
       package: package(),
       description: description(),
@@ -45,7 +45,7 @@ defmodule DBF.MixProject do
     # These are the default files included in the package
     [
       name: "dbf_ex",
-      files: ["lib", "mix.exs", "README.md", "CHANGELOG.md"],
+      files: ["lib", "mix.exs", "README.md", "CHANGELOG.md", "LICENSE"],
       maintainers: ["Jón Grétar Borgþórsson"],
       licenses: ["MIT"],
       source_url: "https://github.com/JonGretar/DBFex",

@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.0] - 2026-08-22
 
 ### Added
 
@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Field decoder selection is now compiled from profile capabilities with schema metadata, keeping textual and binary representations distinct before value decoding.
-- The minimum supported Elixir version is now 1.18.
+- The minimum supported Elixir version is now 1.15.
 - The OTP application and Hex package names were corrected to `dbf_ex`.
 
 ### Fixed
