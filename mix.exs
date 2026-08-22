@@ -5,13 +5,18 @@ defmodule DBF.MixProject do
     [
       app: :dbf_ex,
       version: "0.1.0",
-      elixir: "~> 1.14",
+      elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
       package: package(),
       description: description(),
-      licenses: ["MIT"],
       docs: docs(),
-      deps: deps()
+      deps: deps(),
+      dialyzer: [
+        plt_file: {:no_warn, "priv/plts/#{Mix.env()}.plt"},
+        plt_add_apps: [:ex_unit, :mix]
+      ],
+      preferred_cli_env: [precommit: :test],
+      aliases: aliases()
     ]
   end
 
@@ -40,7 +45,7 @@ defmodule DBF.MixProject do
     # These are the default files included in the package
     [
       name: "dbf_ex",
-      files: ["lib", "mix.exs", "README.md"],
+      files: ["lib", "mix.exs", "README.md", "CHANGELOG.md"],
       maintainers: ["Jón Grétar Borgþórsson"],
       licenses: ["MIT"],
       source_url: "https://github.com/JonGretar/DBFex",
@@ -51,9 +56,21 @@ defmodule DBF.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:ex_doc, "~> 0.27", only: :dev, runtime: false},
-      # {:dep_from_hexpm, "~> 0.3.0"},
-      # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
+      {:ex_doc, "~> 0.40", only: :dev, runtime: false},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
+    ]
+  end
+
+  defp aliases do
+    [
+      precommit: [
+        "compile --warnings-as-errors",
+        "format --check-formatted",
+        "test",
+        "dialyzer",
+        "credo --strict"
+      ]
     ]
   end
 end

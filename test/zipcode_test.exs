@@ -27,12 +27,13 @@ defmodule ZipcodeTest do
 
     test "the first record is all that we wanted", context do
       record = %{
-        "Area__" => 12313263537.0,
-        "Length__" => 995176.225313,
+        "Area__" => 12_313_263_537.0,
+        "Length__" => 995_176.225313,
         "PO_NAME" => "NAPA",
         "STATE" => "CA",
         "ZIP" => "94558"
       }
+
       assert {:record, record} == DBF.get(context.db, 0)
     end
 
@@ -44,5 +45,4 @@ defmodule ZipcodeTest do
       assert context.db.number_of_records == context.db |> Enum.to_list() |> length()
     end
   end
-
 end

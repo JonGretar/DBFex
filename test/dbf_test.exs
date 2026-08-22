@@ -8,5 +8,4 @@ defmodule DBFTest do
       assert {:error, exception} == DBF.open("test/dbf_files/dbase_f5.dbf")
     end
   end
-
 end

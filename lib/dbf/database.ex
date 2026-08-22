@@ -1,6 +1,14 @@
 defmodule DBF.Database do
-  alias DBF.Memo
+  @moduledoc """
+  Metadata and open file handles for a DBF database.
+
+  Values are returned by `DBF.open/1` and implement `Enumerable` over the
+  database records.
+  """
+
   alias DBF.DatabaseError
+  alias DBF.Memo
+
   defstruct [
     :device,
     :filename,
@@ -14,19 +22,20 @@ defmodule DBF.Database do
     fields: [],
     position: 0
   ]
+
   @type t :: %__MODULE__{
-    device: pid() | {:file_descriptor, atom(), any()},
-    filename: String.t(),
-    memo_file: Memo.t() | false,
-    version: byte(),
-    options: DBF.options(),
-    last_updated: Date.t(),
-    number_of_records: integer,
-    header_bytes: integer,
-    record_bytes: integer,
-    fields: [DBF.Field.t()],
-    position: integer
-  }
+          device: pid() | {:file_descriptor, atom(), any()},
+          filename: String.t(),
+          memo_file: Memo.t() | false,
+          version: byte(),
+          options: DBF.options(),
+          last_updated: Date.t(),
+          number_of_records: integer,
+          header_bytes: integer,
+          record_bytes: integer,
+          fields: [DBF.Field.t()],
+          position: integer
+        }
 
   @versions %{
     0x02 => "FoxBase",
@@ -39,46 +48,47 @@ defmodule DBF.Database do
     0x32 => "Visual FoxPro with field type Varchar or Varbinary",
     0x43 => "dBASE IV SQL table files, no memo",
     0x63 => "dBASE IV SQL system files, no memo",
-    0x7b => "dBase IV with memo file",
+    0x7B => "dBase IV with memo file",
     0x83 => "dBase III with memo file",
     0x87 => "Visual Objects 1.x with memo file",
-    0x8b => "dBase IV with memo file",
-    0x8e => "dBase IV with SQL table",
-    0xcb => "dBASE IV SQL table files, with memo",
-    0xf5 => "FoxPro with memo file",
-    0xe5 => "HiPer-Six format with SMT memo file",
-    0xfb => "FoxPro without memo file"
+    0x8B => "dBase IV with memo file",
+    0x8E => "dBase IV with SQL table",
+    0xCB => "dBASE IV SQL table files, with memo",
+    0xF5 => "FoxPro with memo file",
+    0xE5 => "HiPer-Six format with SMT memo file",
+    0xFB => "FoxPro without memo file"
   }
-  @foxpro_versions [0x30, 0x31, 0x32, 0xf5, 0xfb]
-  @supported_versions [0x02, 0x03, 0x83, 0x8b]
+  @foxpro_versions [0x30, 0x31, 0x32, 0xF5, 0xFB]
+  @supported_versions [0x02, 0x03, 0x83, 0x8B]
 
-  def open_database(%__MODULE__{}=db) do
-    with {:ok, db} <- read_version(db),
-         {:ok, db} <- read_header(db)
-    do
-      {:ok, db}
+  def open_database(%__MODULE__{} = db) do
+    case read_version(db) do
+      {:ok, db} -> read_header(db)
+      error -> error
     end
   end
 
-  defp read_header(%__MODULE__{version: 0x02, device: device}=db) do
+  defp read_header(%__MODULE__{version: 0x02, device: device} = db) do
     {:ok, data} = :file.pread(device, 0, 8)
 
     <<
       _version::unsigned-integer-8,
       records::little-unsigned-integer-16,
       _unknown::binary-size(3),
-      record_length::little-unsigned-integer-16,
+      record_length::little-unsigned-integer-16
     >> = data
 
-    {:ok, %__MODULE__{ db |
-      last_updated: Date.from_erl!({1900, 01, 01}),
-      number_of_records: records,
-      header_bytes: 521,
-      record_bytes: record_length
-    } }
+    {:ok,
+     %__MODULE__{
+       db
+       | last_updated: Date.from_erl!({1900, 01, 01}),
+         number_of_records: records,
+         header_bytes: 521,
+         record_bytes: record_length
+     }}
   end
 
-  defp read_header(%__MODULE__{device: device}=db) do
+  defp read_header(%__MODULE__{device: device} = db) do
     {:ok, data} = :file.pread(device, 0, 32)
 
     <<
@@ -98,14 +108,15 @@ defmodule DBF.Database do
       _header_terminator::binary-size(1)
     >> = data
 
-    {:ok, %__MODULE__{ db |
-      last_updated: Date.from_erl!({year + 1900, month, day}),
-      number_of_records: records,
-      header_bytes: header_length,
-      record_bytes: record_length
-    } }
+    {:ok,
+     %__MODULE__{
+       db
+       | last_updated: Date.from_erl!({year + 1900, month, day}),
+         number_of_records: records,
+         header_bytes: header_length,
+         record_bytes: record_length
+     }}
   end
-
 
   @doc false
   @spec foxpro?(DBF.Database.t()) :: boolean()
@@ -121,6 +132,7 @@ defmodule DBF.Database do
 
   defp read_version(db) do
     {:ok, <<version::unsigned-integer-8>>} = :file.pread(db.device, 0, 1)
+
     if version in @supported_versions do
       {:ok, %__MODULE__{db | version: version}}
     else
@@ -128,7 +140,6 @@ defmodule DBF.Database do
       {:error, DatabaseError.new(:unsupported_version, version_string)}
     end
   end
-
 end
 
 # Define the Enumerable implentation for the database.
@@ -143,11 +154,11 @@ defimpl Enumerable, for: DBF.Database do
           | {:halted, any()}
           | {:suspended, any(), ({any(), any()} -> {any(), any()} | {any(), any(), any()})}
   def reduce(db, {:cont, acc}, fun) do
-    if (db.position == db.number_of_records) do
+    if db.position == db.number_of_records do
       {:done, acc}
     else
       record = DBF.get(db, db.position)
-    reduce(Map.put(db, :position, db.position + 1), fun.(record, acc), fun)
+      reduce(Map.put(db, :position, db.position + 1), fun.(record, acc), fun)
     end
   end
 
@@ -168,5 +179,4 @@ defimpl Enumerable, for: DBF.Database do
   def member?(_array, _element) do
     {:error, __MODULE__}
   end
-
 end

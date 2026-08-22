@@ -1,14 +1,14 @@
 defmodule DBF do
   alias DBF.Database
-  alias DBF.Field
-  alias DBF.Record
-  alias DBF.Memo
   alias DBF.DatabaseError
+  alias DBF.Field
+  alias DBF.Memo
+  alias DBF.Record
 
   @type options() :: [
-    memo_file: String.t() | nil
-    # allow_missing_memo: boolean()
-  ]
+          memo_file: String.t() | nil
+          # allow_missing_memo: boolean()
+        ]
 
   @default_options [
     memo_file: nil
@@ -52,15 +52,13 @@ defmodule DBF do
   @doc """
   Open a DBase database file.
   """
-  @spec open(String.t()) :: {:ok, Database.t()} | {:error, Error.t()}
-  @spec open(String.t(), options()) :: {:ok, Database.t()} | {:error, atom()}
+  @spec open(String.t(), options()) ::
+          {:ok, Database.t()} | {:error, atom() | DatabaseError.t()}
   def open(filename, options \\ []) when is_binary(filename) do
     with {:ok, db} <- create_database_struct(filename, options),
          {:ok, db} <- Database.open_database(db),
-         {:ok, db} <- open_memo_file(db),
-         {:ok, db} <- Field.parse_fields(db)
-    do
-      {:ok, db}
+         {:ok, db} <- open_memo_file(db) do
+      Field.parse_fields(db)
     end
   end
 
@@ -80,10 +78,11 @@ defmodule DBF do
   Closes the file access.
   """
   @spec close(Database.t()) :: :ok | {:error, atom()}
-  def close(%Database{device: dev}=db) when is_struct(db, Database) do
+  def close(%Database{device: dev} = db) when is_struct(db, Database) do
     if db.memo_file do
       File.close(db.memo_file.device)
     end
+
     File.close(dev)
   end
 
@@ -95,17 +94,21 @@ defmodule DBF do
   def get(%Database{number_of_records: total}, record_number) when record_number >= total do
     {:error, :record_not_found}
   end
-  def get(%Database{device: dev,
-                        record_bytes: record_bytes,
-                        header_bytes: header_bytes
-                        } = db, record_number) do
+
+  def get(
+        %Database{device: dev, record_bytes: record_bytes, header_bytes: header_bytes} = db,
+        record_number
+      ) do
     offset = header_bytes + record_number * record_bytes
     {:ok, <<raw_type::binary-size(1), data::binary>>} = :file.pread(dev, offset, record_bytes)
-    type = case raw_type do
-      " " -> :record
-      "*" -> :deleted_record
-      _ -> :unknown
-    end
+
+    type =
+      case raw_type do
+        " " -> :record
+        "*" -> :deleted_record
+        _ -> :unknown
+      end
+
     {type, Record.parse_record(db, data)}
   end
 
@@ -113,13 +116,14 @@ defmodule DBF do
   def has_memo_file?(%Database{memo_file: nil}), do: false
   def has_memo_file?(%Database{memo_file: _}), do: true
 
-  defp open_memo_file(%Database{version: version}=db) do
+  defp open_memo_file(%Database{version: version} = db) do
     case search_memo_file(db) do
       nil ->
         {:ok, db}
+
       memo_filename ->
         {:ok, memo_file} = Memo.open(memo_filename, version)
-        {:ok, %Database{db | memo_file: memo_file} }
+        {:ok, %Database{db | memo_file: memo_file}}
     end
   end
 
@@ -128,13 +132,15 @@ defmodule DBF do
     case options(db, :memo_file) do
       nil ->
         search_memo_file_wildly(db.filename)
+
       memo_filename when is_binary(memo_filename) ->
         memo_filename
     end
   end
 
   defp search_memo_file_wildly(filename) do
-    search_path = (filename |> Path.rootname() ) <> ".{fpt,FPT,dbt,DBT}"
+    search_path = (filename |> Path.rootname()) <> ".{fpt,FPT,dbt,DBT}"
+
     case Path.wildcard(search_path) do
       [] -> nil
       memo_file_list when is_list(memo_file_list) -> hd(memo_file_list)
@@ -153,9 +159,8 @@ defmodule DBF do
 
   defp create_database_struct(filename, options) do
     with {:ok, file} <- File.open(filename, [:read, :binary]),
-         {:ok, validated_options} <- validate_options(options)
-    do
-      {:ok, %Database{filename: filename, device: file, options: validated_options} }
+         {:ok, validated_options} <- validate_options(options) do
+      {:ok, %Database{filename: filename, device: file, options: validated_options}}
     end
   end
 
@@ -166,6 +171,4 @@ defmodule DBF do
       {:error, _} -> {:error, DatabaseError.new(:invalid_option)}
     end
   end
-
-
 end

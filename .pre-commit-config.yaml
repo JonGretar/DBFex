@@ -1,0 +1,19 @@
+exclude: ".git"
+default_stages: [pre-push]
+fail_fast: true
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: detect-private-key
+
+  - repo: local
+    hooks:
+      - id: mix-precommit
+        name: "elixir: mix precommit"
+        entry: mix precommit
+        language: system
+        pass_filenames: false
+        files: \.exs*$

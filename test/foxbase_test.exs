@@ -28,7 +28,5 @@ defmodule FoxBaseTest do
     test "then the number of records should match the header", context do
       assert context.db.number_of_records == context.db |> Enum.to_list() |> length()
     end
-
   end
-
 end

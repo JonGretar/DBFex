@@ -34,20 +34,20 @@ defmodule DBase3Test do
         "Data_Dicti" => "MS4",
         "Datafile" => "050712TR2819.cor",
         "Date_Visit" => ~D[2005-07-12],
-        "Easting" => 2212577.192,
+        "Easting" => 2_212_577.192,
         "Feat_Name" => "Driveway",
         "Filt_Pos" => 2.0,
         "Flow_prese" => "no",
         "GPS_Date" => ~D[2005-07-12],
         "GPS_Height" => 1131.323,
-        "GPS_Second" => 226625.0,
+        "GPS_Second" => 226_625.0,
         "GPS_Time" => "10:56:52am",
         "GPS_Week" => 1331.0,
         "Horz_Prec" => 1.3,
         "Max_HDOP" => 2.0,
         "Max_PDOP" => 5.2,
         "Non_circul" => "",
-        "Northing" => 557904.898,
+        "Northing" => 557_904.898,
         "Point_ID" => 401.0,
         "Rcvr_Type" => "GeoXT",
         "Shape" => "circular",
@@ -58,13 +58,13 @@ defmodule DBase3Test do
         "Update_Sta" => "New",
         "Vert_Prec" => 3.1
       }
+
       assert {:record, record} == DBF.get(context.db, 0)
     end
 
     test "then the number of records should match the header", context do
       assert context.db.number_of_records == context.db |> Enum.to_list() |> length()
     end
-
   end
 
   describe "When reading version (83) dBase III with memo file" do
@@ -97,7 +97,8 @@ defmodule DBase3Test do
         "CATCOUNT" => 2.0,
         "CODE" => "1",
         "COST" => 0.0,
-        "DESC" => "Our Original assortment...a little taste of heaven for everyone.  Let us\r\nselect a special assortment of our chocolate and pastel favorites for you.\r\nEach petit four is its own special hand decorated creation. Multi-layers of\r\nmoist cake with combinations of specialty fillings create memorable cake\r\nconfections. Varietes include; Luscious Lemon, Strawberry Hearts, White\r\nChocolate, Mocha Bean, Roasted Almond, Triple Chocolate, Chocolate Hazelnut,\r\nGrand Orange, Plum Squares, Milk chocolate squares, and Rasp",
+        "DESC" =>
+          "Our Original assortment...a little taste of heaven for everyone.  Let us\r\nselect a special assortment of our chocolate and pastel favorites for you.\r\nEach petit four is its own special hand decorated creation. Multi-layers of\r\nmoist cake with combinations of specialty fillings create memorable cake\r\nconfections. Varietes include; Luscious Lemon, Strawberry Hearts, White\r\nChocolate, Mocha Bean, Roasted Almond, Triple Chocolate, Chocolate Hazelnut,\r\nGrand Orange, Plum Squares, Milk chocolate squares, and Rasp",
         "ID" => 87.0,
         "IMAGE" => "graphics/00000001/1.jpg",
         "NAME" => "Assorted Petits Fours",
@@ -108,6 +109,7 @@ defmodule DBase3Test do
         "THUMBNAIL" => "graphics/00000001/t_1.jpg",
         "WEIGHT" => 5.51
       }
+
       assert {:record, record} == DBF.get(context.db, 0)
     end
 
@@ -115,6 +117,4 @@ defmodule DBase3Test do
       assert context.db.number_of_records == context.db |> Enum.to_list() |> length()
     end
   end
-
-
 end

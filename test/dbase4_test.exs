@@ -10,7 +10,7 @@ defmodule DBase4Test do
     end
 
     test "reads the version", context do
-      assert context.db.version == 0x8b
+      assert context.db.version == 0x8B
     end
 
     test "reads the last updated date", context do
@@ -34,13 +34,12 @@ defmodule DBase4Test do
         "MEMO" => "First memo",
         "NUMERICAL" => 1.0
       }
+
       assert {:record, record} == DBF.get(context.db, 0)
     end
 
     test "then the number of records should match the header", context do
       assert context.db.number_of_records == context.db |> Enum.to_list() |> length()
     end
-
   end
-
 end
