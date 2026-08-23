@@ -54,6 +54,21 @@ defmodule DBF.TextDecoderTest do
     assert {:ok, <<0x81>>} = TextDecoder.decode(raw, <<0x81>>)
   end
 
+  test "raw fallback returns the complete original byte string" do
+    assert {:ok, raw} = TextDecoder.compile(0x03, encoding: :auto, encoding_errors: :raw)
+
+    original = <<0xE9, 0x81, 0xE9>>
+
+    assert {:ok, ^original} = TextDecoder.decode(raw, original)
+  end
+
+  test "removes fixed-width padding before raw fallback" do
+    assert {:ok, raw} = TextDecoder.compile(0x03, encoding: :auto, encoding_errors: :raw)
+
+    assert {:ok, <<0xE9, 0x81, 0xE9>>} =
+             TextDecoder.decode(raw, <<"  ", 0xE9, 0x81, 0xE9, "  ">>, :both)
+  end
+
   test "does not guess missing or unknown language drivers" do
     for driver <- [nil, 0, 0xFF] do
       assert {:ok, raw} =

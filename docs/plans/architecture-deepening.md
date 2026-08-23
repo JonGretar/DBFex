@@ -17,7 +17,7 @@ coordinated with Phase 4's null and variable-width record requirements.
 - [x] C — Consolidate duplicated helpers (smallest, lowest-risk, unblocks A and E)
 - [x] A — Extract the complete opening operation from `DBF` (biggest leverage)
 - [x] B — Define and enforce zero-width field policy
-- [ ] D — Characterize `TextDecoder` raw fallback against ADR 0005
+- [x] D — Characterize `TextDecoder` raw fallback against ADR 0005
 
 ### Reassess with Phase 4 record requirements
 
@@ -116,11 +116,11 @@ create a mixed raw/UTF-8 result and is a different policy, not an architectural
 cleanup. If such behavior is needed, introduce a separately named policy and
 amend or supersede ADR 0005 before implementation.
 
-- [ ] D.1 Add a test with defined bytes before and after an undefined byte and assert the complete trimmed original byte string is returned
-- [ ] D.2 Add a test proving fixed-width padding is removed before raw fallback
-- [ ] D.3 Leave `decode_bytes/6` unchanged unless the characterization exposes an ADR mismatch
-- [ ] D.4 Run `mix test`
-- [ ] D.5 Run `mix precommit`
+- [x] D.1 Add a test with defined bytes before and after an undefined byte and assert the complete trimmed original byte string is returned
+- [x] D.2 Add a test proving fixed-width padding is removed before raw fallback
+- [x] D.3 Leave `decode_bytes/6` unchanged unless the characterization exposes an ADR mismatch
+- [x] D.4 Run `mix test`
+- [x] D.5 Run `mix precommit`
 
 ---
 
