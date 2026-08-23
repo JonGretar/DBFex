@@ -351,6 +351,20 @@ values remain untouched, and callers can identify the value policy used.
 **Exit criterion:** The legacy profiles form a verified baseline before FoxPro
 and Visual FoxPro add binary fields, FPT memos, timestamps, and null metadata.
 
+### Architecture checkpoint after Phase 3
+
+Track the post-refactor work in
+[Architecture deepening — post-Phase 3 cleanup](architecture-deepening.md).
+Complete the revised opening extraction, zero-width field policy, and raw-text
+fallback characterization before Phase 4 where practical. They preserve the
+existing compatibility perimeter and reduce ambiguity before new formats land.
+
+Reassess database representation, the physical record-reader seam, and
+field-descriptor layout ownership together with Phase 4. Null bitmaps,
+variable-width values, and additional descriptor families should provide the
+requirements for those modules; do not add a speculative compiled-record struct
+or move resource I/O into the pure `DBF.Record` decoder.
+
 ### Phase 4 — Expand formats in evidence-driven order
 
 #### 4.1 FoxPro 2.x and Visual FoxPro baseline

@@ -4,57 +4,79 @@
 - Date: 2026-08-23
 - Depends on: Phases -1 through 3 (complete)
 
-The reader refactor succeeded in separating concerns but left the public DBF
-module shallow and a few internal modules with duplicated helpers. These
-candidates are independent of the Phase 4 format-expansion work and can be
-tackled in any order.
+The reader refactor succeeded in separating concerns but left the public `DBF`
+module owning too much implementation and the open database duplicating parsed
+metadata. The remaining candidates are not independent: opening can be deepened
+before Phase 4, while database and record-reader representation should be
+coordinated with Phase 4's null and variable-width record requirements.
 
 ## Execution order
 
+### Before Phase 4
+
 - [x] C — Consolidate duplicated helpers (smallest, lowest-risk, unblocks A and E)
-- [ ] A — Extract the opening pipeline from DBF (biggest leverage)
-- [ ] B — Deepen ValueDecoder with per-kind blank policies
-- [ ] D — Make TextDecoder raw-fallback explicit (evaluate against existing tests)
-- [ ] F — Compile header/schema into a flat compiled-record struct (evaluate benefit)
-- [ ] E — Collapse DBF.Record (only if A is done and the pipeline is a natural home)
+- [ ] A — Extract the complete opening operation from `DBF` (biggest leverage)
+- [ ] B — Define and enforce zero-width field policy
+- [ ] D — Characterize `TextDecoder` raw fallback against ADR 0005
+
+### Reassess with Phase 4 record requirements
+
+- [ ] F — Remove duplicated header/schema projections from `Database`
+- [ ] E — Deepen the physical record-reading path behind `DBF.RecordReader`
+- [ ] G — Give field-descriptor layouts cohesive ownership
 
 ---
 
-## Candidate A: Extract the opening pipeline from DBF
+## Candidate A: Extract the complete opening operation from DBF
 
-**Files:** `lib/dbf.ex`, `lib/dbf/database.ex`
+**Files:** `lib/dbf.ex`, `lib/dbf/opening.ex`, `test/opening_safety_test.exs`
 
-Extract `initialize_database/3`, `read_version/1`, `read_schema/3`,
-`read_structure/4`, `initialize_memo/6`, `acquire_and_initialize_memo/5`,
-`find_memo_probe/3`, `find_record_memo_probe/4`, `parse_memo_probe/5`,
-`memo_paths/2`, `validate_options/1`, `validate_option_values/1`, and all
-individual `validate_*` helpers into a new internal module `DBF.OpeningPipeline`.
+Create a deep internal `DBF.Opening` module that owns the complete opening
+operation behind one interface: `open(filename, raw_options)`. It validates and
+normalizes options before touching the filesystem, owns the table resource
+transaction, parses the profile/header/schema, discovers and acquires memo
+resources, and constructs `%Database{}`.
 
-`DBF` becomes a thin facade (~80 lines). The pipeline module exposes one
-function — `open/3` — that takes a resource, filename, and options and returns
-`{:ok, %Database{}}` or an error.
+This interface preserves ADR 0001's validation and transactional-resource
+invariants. An interface that accepts an already acquired resource would be too
+late to validate options without splitting opening knowledge across modules.
 
-- [ ] A.1 Create `lib/dbf/opening_pipeline.ex` with `@moduledoc false`
-- [ ] A.2 Move all listed functions into the new module, keeping them private except `open/3`
-- [ ] A.3 In `DBF`, replace the inline pipeline with a call to `OpeningPipeline.open(resource, filename, options)`
-- [ ] A.4 Run `mix test`
-- [ ] A.5 Run `mix precommit`
+`DBF` remains the stable public facade. It keeps public types and documentation,
+`open!/2` and `with_open/3` lifecycle presentation, and translation from internal
+`DBF.Error` values to `DBF.DatabaseError`. Reducing implementation responsibility,
+not reaching a target line count, is the acceptance criterion.
+
+- [ ] A.1 Create `lib/dbf/opening.ex` with `@moduledoc false` and public `open/2` only
+- [ ] A.2 Move option defaults, validation, and normalization into `DBF.Opening`
+- [ ] A.3 Move `Resource.transaction/2` and the complete initialization/memo-discovery path into `DBF.Opening`
+- [ ] A.4 Keep public error translation and lifecycle presentation in `DBF`
+- [ ] A.5 Add or preserve regression tests proving invalid options win before missing-file errors and failed opens release every acquired resource
+- [ ] A.6 Run `mix test`
+- [ ] A.7 Run `mix precommit`
 
 ---
 
-## Candidate B: Deepen ValueDecoder with per-kind blank policies
+## Candidate B: Define and enforce zero-width field policy
 
-**Files:** `lib/dbf/value_decoder.ex`
+**Files:** `lib/dbf/schema.ex`, `lib/dbf/value_decoder.ex`, schema/value tests
 
-Remove the catch-all `def decode(_db, _field, "")` clause. Handle blank values
-in each field-kind clause explicitly. The `decode/3` interface narrows to a
-dispatch on compiled decoder tuples, with each clause owning its own blank
-policy.
+The catch-all `def decode(_db, _field, ""), do: nil` does not handle ordinary
+fixed-width blank values; those still contain each field kind's physical blank
+bytes and are already covered by ADR 0004. The catch-all handles only a
+zero-byte field slice and currently lets a zero-width unsupported field bypass
+its compiled decoder.
 
-- [ ] B.1 Remove `def decode(_db, _field, ""), do: nil`
-- [ ] B.2 Add per-kind blank clauses: `:character` → `""`, `:float` → `nil`, `:logical` → `nil`, `:date` → `nil`, `:memo` → `nil`, `{:numeric, _}` → `nil`
-- [ ] B.3 Run `mix test`
-- [ ] B.4 Run `mix precommit`
+For accepted fixed-width profiles, decide from format evidence whether any field
+kind may legally have width zero. Reject unsupported zero widths during schema
+compilation rather than classifying malformed structure as blank data. Future
+profiles may declare a zero-width capability if their specification requires it.
+
+- [ ] B.1 Add a regression proving a zero-width unsupported or malformed field cannot decode as `nil`
+- [ ] B.2 Document and enforce the accepted profiles' minimum field widths during schema compilation
+- [ ] B.3 Remove the global empty-binary shortcut from `ValueDecoder.decode/3`
+- [ ] B.4 Preserve tests for actual character, numeric, float, logical, date, and memo blank representations from ADR 0004
+- [ ] B.5 Run `mix test`
+- [ ] B.6 Run `mix precommit`
 
 ---
 
@@ -78,58 +100,112 @@ callers.
 
 ---
 
-## Candidate D: Make TextDecoder raw-fallback explicit
+## Candidate D: Characterize TextDecoder raw fallback
 
-**Files:** `lib/dbf/text_decoder.ex`
+**Files:** `test/text_decoder_test.exs`, `docs/adr/0005-use-explicit-text-encoding-policies.md`
 
-When `errors: :raw` and an invalid byte is hit, `decode_bytes/6` returns
-`{:ok, original}` — the untrimmed, pre-processed binary. This leaks internal
-processing state. For `:raw` mode, pass undefined bytes through as literal bytes
-rather than short-circuiting to the original.
+ADR 0005 deliberately defines `encoding_errors: :raw` as an all-or-nothing
+fallback: after fixed-width byte padding is removed, an undefined byte in a known
+code page returns the complete original byte string. `TextDecoder.decode/3`
+trims before passing that byte string to `decode_bytes/6`, so the implementation
+already matches the decision.
 
-**Status:** Worth exploring. This is a behavioral change, not a pure refactor.
-Verify existing tests don't rely on the short-circuit before proceeding.
+Appending undefined bytes while continuing to convert surrounding bytes would
+create a mixed raw/UTF-8 result and is a different policy, not an architectural
+cleanup. If such behavior is needed, introduce a separately named policy and
+amend or supersede ADR 0005 before implementation.
 
-- [ ] D.1 In `decode_bytes/6`, change the `:raw` clause to append raw bytes and continue instead of returning `{:ok, original}`
-- [ ] D.2 Add a test that verifies `:raw` mode preserves invalid bytes in place
-- [ ] D.3 Run `mix test`
-- [ ] D.4 Run `mix precommit`
-
----
-
-## Candidate E: Collapse DBF.Record into the record pipeline
-
-**Files:** `lib/dbf/record.ex`, `lib/dbf.ex`
-
-`DBF.Record` is 65 lines with one public function, `parse_record/2`. The
-interface is nearly as wide as the implementation. Inline the field iteration
-and error handling into the pipeline.
-
-**Status:** Speculative. Only do this if Candidate A is complete and the
-pipeline module is a natural home.
-
-- [ ] E.1 Move `parse_record/2` and `read_field_value/3` into the opening pipeline module (or `dbf.ex` if A is not done)
-- [ ] E.2 Delete `lib/dbf/record.ex`
-- [ ] E.3 Run `mix test`
-- [ ] E.4 Run `mix precommit`
+- [ ] D.1 Add a test with defined bytes before and after an undefined byte and assert the complete trimmed original byte string is returned
+- [ ] D.2 Add a test proving fixed-width padding is removed before raw fallback
+- [ ] D.3 Leave `decode_bytes/6` unchanged unless the characterization exposes an ADR mismatch
+- [ ] D.4 Run `mix test`
+- [ ] D.5 Run `mix precommit`
 
 ---
 
-## Candidate F: Compile header and schema into a flat compiled-record struct
+## Candidate E: Deepen the physical record-reading path
 
-**Files:** `lib/dbf/database.ex`, `lib/dbf.ex`, `lib/dbf/record.ex`
+**Files:** `lib/dbf.ex`, `lib/dbf/record.ex`, `lib/dbf/record_reader.ex`, `lib/dbf/database.ex`
 
-The `DBF.Database` struct has 15 fields mixing lifecycle concerns and compiled
-record data. Group the compiled record-reader fields (header_bytes, record_bytes,
-record_count, fields, text_decoder) into a nested struct. Record reading uses
-the nested struct; the outer struct manages lifecycle.
+`DBF.Record.parse_record/2` already hides width validation, compiled field
+slicing, fail-fast decoding, and defensive error translation behind a small
+interface. By the deletion test it is earning its keep: deleting it would move
+that implementation into a caller. It should remain a pure decoder receiving a
+bounded record binary, consistent with the reader roadmap.
 
-**Status:** Worth exploring. ADR 0001 says `Database` is opaque, so this is
-compatible. Evaluate whether the extra struct adds clarity or just moves the
-grab-bag one level down.
+The shallow seam is instead the physical read path in `DBF.get/2`. Introduce an
+internal `DBF.RecordReader.fetch/2` that owns index validation, offset
+calculation, bounded resource reads, record-marker interpretation, delegation to
+`DBF.Record`, and record-level error context. `DBF.get/2` remains the public
+facade and translates the internal error result.
 
-- [ ] F.1 Create `lib/dbf/compiled_record.ex` with `header_bytes`, `record_bytes`, `record_count`, `fields`, `text_decoder`
-- [ ] F.2 Populate it during `initialize_database/3` instead of spreading fields across `Database`
-- [ ] F.3 Update `DBF.get/2` and the `Enumerable` implementation to destructure `compiled_record`
-- [ ] F.4 Run `mix test`
-- [ ] F.5 Run `mix precommit`
+**Status:** Reassess after F and alongside Phase 4 record-layout work. The reader
+must accommodate null bitmaps and variable-width metadata without adding raw
+version checks.
+
+- [ ] E.1 Create `lib/dbf/record_reader.ex` with `@moduledoc false` and public `fetch/2` only
+- [ ] E.2 Move index validation, positional reads, marker handling, and record-level context from `DBF.get/2` into `RecordReader.fetch/2`
+- [ ] E.3 Keep binary decoding and field-level context in `DBF.Record.parse_record/2`
+- [ ] E.4 Keep public error translation in `DBF.get/2`
+- [ ] E.5 Add regression coverage for invalid indexes, markers, truncation, decode failures, and Phase 4 record metadata
+- [ ] E.6 Run `mix test`
+- [ ] E.7 Run `mix precommit`
+
+---
+
+## Candidate F: Remove duplicated header/schema projections from Database
+
+**Files:** `lib/dbf/database.ex`, `lib/dbf.ex`, `lib/dbf/record.ex`, fixture/public tests
+
+`DBF.Database` duplicates values already owned by parsed structures:
+`record_bytes`, `fields`, and `text_decoder` project `%DBF.Schema{}` while
+version, date, record count, header length, record length, flags, and language
+driver project parsed header data. Adding a passive `%DBF.CompiledRecord{}` would
+create another representation and synchronization invariant rather than deepen
+a module.
+
+Retain the parsed `%DBF.Header{}` and `%DBF.Schema{}` in the opaque database and
+read metadata through those owners. Keep lifecycle state (`resource`, filename,
+memo, options, profile) in `%DBF.Database{}`. ADR 0001 permits changing database
+fields, but tests that intentionally inspect the opaque value must be updated
+together and downstream source compatibility should still be considered.
+
+**Status:** Reassess at the start of Phase 4. New table flags, field metadata,
+null metadata, and variable-width records should determine the final retained
+shape; do not introduce a second compiled-record struct speculatively.
+
+- [ ] F.1 Inventory every duplicated `Database` projection and its internal/test callers
+- [ ] F.2 Retain parsed `header` and `schema` values instead of copying their fields into `Database`
+- [ ] F.3 Update `DBF`, `Enumerable`, record/memo readers, and tests to use the owning structures
+- [ ] F.4 Verify that Phase 4 null and variable-width metadata has one owner and no raw-version dispatch leaks into record reading
+- [ ] F.5 Decide whether the observable-but-unstable struct change merits an `[Unreleased]` changelog note
+- [ ] F.6 Run `mix test`
+- [ ] F.7 Run `mix precommit`
+
+---
+
+## Candidate G: Give field-descriptor layouts cohesive ownership
+
+**Files:** `lib/dbf/layout_helpers.ex`, `lib/dbf.ex`, `lib/dbf/header.ex`, `lib/dbf/schema.ex`
+
+Candidate C intentionally consolidated duplicated mappings and is complete. Do
+not rewrite its history. If Phase 4 adds another descriptor family or more
+layout behavior, replace the generic helper seam with a cohesive
+`DBF.FieldDescriptorLayout` module owning descriptor start, size, and any
+layout-specific structural rules. Do not let unrelated convenience functions
+accumulate in a `Helpers` module.
+
+`byte_size_if_binary/1` is error-reporting convenience rather than descriptor
+layout behavior. At that point, keep it caller-local or move it only to a module
+that owns a broader, demonstrated error-context operation.
+
+**Status:** Deferred trigger. Do not perform this rename solely for aesthetics;
+execute it when new descriptor behavior gives the module meaningful depth.
+
+- [ ] G.1 Reassess when Phase 4 introduces the next field-descriptor layout
+- [ ] G.2 Create `DBF.FieldDescriptorLayout` with the complete demonstrated layout interface
+- [ ] G.3 Move descriptor start/size and related structural rules out of `LayoutHelpers`
+- [ ] G.4 Keep unrelated binary-size convenience out of the descriptor-layout module
+- [ ] G.5 Update callers and delete `DBF.LayoutHelpers` only when it has no cohesive responsibility left
+- [ ] G.6 Run `mix test`
+- [ ] G.7 Run `mix precommit`
