@@ -64,7 +64,7 @@ parsers.
   large whole-format behavior whose callbacks combine independently varying
   concerns.
 
-See [`ADR 0003`](docs/adr/0003-compose-format-variants-by-layout.md).
+See [`ADR 0003`](adr/0003-compose-format-variants-by-layout.md).
 
 ## Memo and binary traps
 
