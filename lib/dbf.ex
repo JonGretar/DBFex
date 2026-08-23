@@ -4,6 +4,7 @@ defmodule DBF do
   alias DBF.Error
   alias DBF.FormatProfile
   alias DBF.Header
+  alias DBF.LayoutHelpers
   alias DBF.Memo
   alias DBF.Record
   alias DBF.Resource
@@ -366,7 +367,7 @@ defmodule DBF do
   end
 
   defp read_schema(resource, profile, header) do
-    start = descriptor_start(profile.field_descriptor_layout)
+    start = LayoutHelpers.descriptor_start(profile.field_descriptor_layout)
     length = header.header_length - start
     read_structure(resource, start, length, :invalid_schema)
   end
@@ -562,7 +563,4 @@ defmodule DBF do
   defp add_error_context({:error, %Error{} = error}, context) do
     {:error, Error.add_context(error, context)}
   end
-
-  defp descriptor_start(:foxbase_16), do: 8
-  defp descriptor_start(:dbase_legacy_32), do: 32
 end
