@@ -4,7 +4,7 @@ defmodule DBF.MixProject do
   def project do
     [
       app: :dbf_ex,
-      version: "0.2.0",
+      version: "0.2.1",
       elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
       package: package(),
@@ -30,8 +30,76 @@ defmodule DBF.MixProject do
 
   def docs do
     [
-      main: "DBF"
+      main: "DBF",
+      extras: [
+        "docs/Architecture.md",
+        "docs/DBF-Format.md"
+      ],
+      groups_for_extras: [
+        "Architecture and formats": [
+          "docs/Architecture.md",
+          "docs/DBF-Format.md"
+        ]
+      ],
+      before_closing_body_tag: &mermaid_script/1,
+      skip_code_autolink_to: &hidden_internal_module?/1
     ]
+  end
+
+  defp mermaid_script(:html) do
+    ~S"""
+    <script defer src="https://cdn.jsdelivr.net/npm/mermaid@10.2.3/dist/mermaid.min.js"></script>
+    <script>
+      let initialized = false;
+
+      window.addEventListener("exdoc:loaded", () => {
+        if (!initialized) {
+          mermaid.initialize({
+            startOnLoad: false,
+            theme: document.body.className.includes("dark") ? "dark" : "default"
+          });
+          initialized = true;
+        }
+
+        let id = 0;
+        for (const codeEl of document.querySelectorAll("pre code.mermaid")) {
+          const preEl = codeEl.parentElement;
+          const graphDefinition = codeEl.textContent;
+          const graphEl = document.createElement("div");
+          const graphId = "mermaid-graph-" + id++;
+          mermaid.render(graphId, graphDefinition).then(({svg, bindFunctions}) => {
+            graphEl.innerHTML = svg;
+            bindFunctions?.(graphEl);
+            preEl.insertAdjacentElement("afterend", graphEl);
+            preEl.remove();
+          });
+        }
+      });
+    </script>
+    """
+  end
+
+  defp mermaid_script(_format), do: ""
+
+  defp hidden_internal_module?(reference) do
+    Enum.any?(
+      ~w(
+        DBF.DatabaseError.from_internal
+        DBF.Error
+        DBF.FormatProfile
+        DBF.Header
+        DBF.LayoutHelpers
+        DBF.Memo
+        DBF.Opening
+        DBF.Record
+        DBF.Resource
+        DBF.Schema
+        DBF.TextDecoder
+        DBF.ValueDecoder
+      ),
+      &(reference == &1 or String.starts_with?(reference, &1 <> ".") or
+          String.starts_with?(reference, &1 <> "/"))
+    )
   end
 
   # Run "mix help compile.app" to learn about applications.

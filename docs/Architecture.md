@@ -7,7 +7,7 @@ FoxPro, FPT, variable-width, and explicit-null support is called out separately
 and must not be mistaken for implemented behavior.
 
 For byte-level format notes and source references, see [`DBF-Format.md`](DBF-Format.md).
-For the decisions behind this architecture, see [`docs/adr/`](adr/).
+For the decisions behind this architecture, see [`docs/adr/`](https://github.com/JonGretar/DBFex/tree/main/docs/adr).
 
 ## Mental model
 
@@ -110,7 +110,7 @@ pattern-match on its fields.
 The broad `DBF.DatabaseError.reason` category is the stable part of an error.
 Its `cause`, context fields, and formatted message may become more detailed.
 
-See [ADR 0001](adr/0001-compatibility-perimeter.md) for the exact compatibility
+See [ADR 0001](https://github.com/JonGretar/DBFex/blob/main/docs/adr/0001-compatibility-perimeter.md) for the exact compatibility
 classification.
 
 ## Opening a database
@@ -218,7 +218,7 @@ A recognized one-byte field type is not enough to enable decoding. The selected
 profile must explicitly advertise that field kind. Unsupported capabilities are
 kept unsupported rather than borrowing semantics from another xBase variant.
 
-See [ADR 0003](adr/0003-compose-format-variants-by-layout.md).
+See [ADR 0003](https://github.com/JonGretar/DBFex/blob/main/docs/adr/0003-compose-format-variants-by-layout.md).
 
 ## Header and schema compilation
 
@@ -374,7 +374,7 @@ option into a decoder tag stored on the field. `decode/3` dispatches on that tag
 
 For current legacy profiles, `nil` represents a format-specific blank value, not
 an explicit database null. Explicit null metadata is a separate planned Visual
-FoxPro record capability. See [ADR 0004](adr/0004-preserve-compatible-legacy-value-defaults.md).
+FoxPro record capability. See [ADR 0004](https://github.com/JonGretar/DBFex/blob/main/docs/adr/0004-preserve-compatible-legacy-value-defaults.md).
 
 ## Text decoding
 
@@ -406,7 +406,7 @@ For an undefined byte in a known code page:
 - `:raw` returns the complete trimmed original byte string, avoiding a binary
   containing a mixture of converted UTF-8 and source-code-page bytes.
 
-See [ADR 0005](adr/0005-use-explicit-text-encoding-policies.md).
+See [ADR 0005](https://github.com/JonGretar/DBFex/blob/main/docs/adr/0005-use-explicit-text-encoding-policies.md).
 
 ## Memo architecture
 
@@ -489,7 +489,7 @@ if it dies.
   close causes into one `:close_failed` error.
 - A database or suspended enumeration must not be used after close.
 
-See [ADR 0002](adr/0002-use-a-process-backed-resource-owner.md).
+See [ADR 0002](https://github.com/JonGretar/DBFex/blob/main/docs/adr/0002-use-a-process-backed-resource-owner.md).
 
 ## Error architecture
 
@@ -614,15 +614,3 @@ Database representation, a possible physical record-reader module, and cohesive
 field-descriptor layout ownership are intentionally being reassessed alongside
 Phase 4 requirements. This document should be updated when those changes become
 implemented architecture.
-
-## Related documentation
-
-- [`README.md`](../README.md) — public usage and support matrix
-- [`DBF-Format.md`](DBF-Format.md) — byte-level notes, traps, and references
-- [`docs/plans/dbf-reader-roadmap.md`](plans/dbf-reader-roadmap.md) — delivery roadmap
-- [`docs/plans/architecture-deepening.md`](plans/architecture-deepening.md) — active internal cleanup plan
-- [ADR 0001: compatibility perimeter](adr/0001-compatibility-perimeter.md)
-- [ADR 0002: process-backed resource owner](adr/0002-use-a-process-backed-resource-owner.md)
-- [ADR 0003: profile-composed format variants](adr/0003-compose-format-variants-by-layout.md)
-- [ADR 0004: compatible legacy value defaults](adr/0004-preserve-compatible-legacy-value-defaults.md)
-- [ADR 0005: explicit text encoding policies](adr/0005-use-explicit-text-encoding-policies.md)

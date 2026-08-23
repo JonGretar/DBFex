@@ -5,11 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.1] - 2026-08-23
+
+### Added
+
+- Added an architecture guide covering module responsibilities, opening, resource ownership, schema compilation, record decoding, memo handling, and extension invariants.
 
 ### Changed
 
-- Various architectual changes in the background.
+- Extracted the complete database-opening operation into the internal `DBF.Opening` module while preserving the public API and validation order.
+- Consolidated shared descriptor-layout helpers and moved the DBF format notes under `docs/`.
 
 ### Fixed
 
