@@ -32,10 +32,14 @@ defmodule DBF.MixProject do
     [
       main: "DBF",
       extras: [
+        "CHANGELOG.md",
         "docs/Architecture.md",
         "docs/DBF-Format.md"
       ],
       groups_for_extras: [
+        "Release notes": [
+          "CHANGELOG.md"
+        ],
         "Architecture and formats": [
           "docs/Architecture.md",
           "docs/DBF-Format.md"
