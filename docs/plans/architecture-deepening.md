@@ -15,7 +15,7 @@ coordinated with Phase 4's null and variable-width record requirements.
 ### Before Phase 4
 
 - [x] C — Consolidate duplicated helpers (smallest, lowest-risk, unblocks A and E)
-- [ ] A — Extract the complete opening operation from `DBF` (biggest leverage)
+- [x] A — Extract the complete opening operation from `DBF` (biggest leverage)
 - [ ] B — Define and enforce zero-width field policy
 - [ ] D — Characterize `TextDecoder` raw fallback against ADR 0005
 
@@ -46,13 +46,13 @@ late to validate options without splitting opening knowledge across modules.
 `DBF.Error` values to `DBF.DatabaseError`. Reducing implementation responsibility,
 not reaching a target line count, is the acceptance criterion.
 
-- [ ] A.1 Create `lib/dbf/opening.ex` with `@moduledoc false` and public `open/2` only
-- [ ] A.2 Move option defaults, validation, and normalization into `DBF.Opening`
-- [ ] A.3 Move `Resource.transaction/2` and the complete initialization/memo-discovery path into `DBF.Opening`
-- [ ] A.4 Keep public error translation and lifecycle presentation in `DBF`
-- [ ] A.5 Add or preserve regression tests proving invalid options win before missing-file errors and failed opens release every acquired resource
-- [ ] A.6 Run `mix test`
-- [ ] A.7 Run `mix precommit`
+- [x] A.1 Create `lib/dbf/opening.ex` with `@moduledoc false` and public `open/2` only
+- [x] A.2 Move option defaults, validation, and normalization into `DBF.Opening`
+- [x] A.3 Move `Resource.transaction/2` and the complete initialization/memo-discovery path into `DBF.Opening`
+- [x] A.4 Keep public error translation and lifecycle presentation in `DBF`
+- [x] A.5 Add or preserve regression tests proving invalid options win before missing-file errors and failed opens release every acquired resource
+- [x] A.6 Run `mix test`
+- [x] A.7 Run `mix precommit`
 
 ---
 
