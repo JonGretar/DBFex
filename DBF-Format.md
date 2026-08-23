@@ -14,7 +14,8 @@ evidence; never infer complete support from the version byte alone.
   the first record and includes the `0x0D` descriptor terminator. Validate the
   terminator rather than deriving field count from division alone.
 - Declared record length includes the one-byte deletion marker. It should equal
-  `1 + sum(field widths)` for fixed-width layouts.
+  `1 + sum(field widths)` for fixed-width layouts. The currently accepted
+  fixed-width profiles reject zero-width field descriptors as invalid structure.
 - Records normally start with `0x20` (active) or `0x2A` (deleted). Some writers
   append `0x1A` after the final record; do not require it unless the selected
   profile does.

@@ -77,6 +77,35 @@ defmodule DBF.SchemaTest do
             }} = Schema.parse(descriptor <> <<0x0D>>, profile, header)
   end
 
+  test "rejects zero-width fields before decoder compilation" do
+    cases = [
+      {0x02, &foxbase_descriptor/3, "C"},
+      {0x02, &foxbase_descriptor/3, "X"},
+      {0x03, &legacy_descriptor/3, "C"},
+      {0x03, &legacy_descriptor/3, "X"}
+    ]
+
+    for {version, descriptor_fun, type} <- cases do
+      profile = profile!(version)
+      descriptor = descriptor_fun.("EMPTY", type, 0)
+      descriptor_start = if version == 0x02, do: 8, else: 32
+      header = header(version, descriptor_start + byte_size(descriptor) + 1, 1)
+
+      assert {:error,
+              %DBF.Error{
+                reason: :invalid_schema,
+                cause: :invalid_field_length,
+                context: %{
+                  field_name: "EMPTY",
+                  field_type: ^type,
+                  field_length: 0,
+                  minimum: 1,
+                  offset: ^descriptor_start
+                }
+              }} = Schema.parse(descriptor <> <<0x0D>>, profile, header)
+    end
+  end
+
   test "rejects FoxBase descriptor truncation at every byte boundary" do
     descriptor = foxbase_descriptor("NAME", "C", 12)
     profile = profile!(0x02)

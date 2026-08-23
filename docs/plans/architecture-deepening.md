@@ -16,7 +16,7 @@ coordinated with Phase 4's null and variable-width record requirements.
 
 - [x] C — Consolidate duplicated helpers (smallest, lowest-risk, unblocks A and E)
 - [x] A — Extract the complete opening operation from `DBF` (biggest leverage)
-- [ ] B — Define and enforce zero-width field policy
+- [x] B — Define and enforce zero-width field policy
 - [ ] D — Characterize `TextDecoder` raw fallback against ADR 0005
 
 ### Reassess with Phase 4 record requirements
@@ -71,12 +71,13 @@ kind may legally have width zero. Reject unsupported zero widths during schema
 compilation rather than classifying malformed structure as blank data. Future
 profiles may declare a zero-width capability if their specification requires it.
 
-- [ ] B.1 Add a regression proving a zero-width unsupported or malformed field cannot decode as `nil`
-- [ ] B.2 Document and enforce the accepted profiles' minimum field widths during schema compilation
-- [ ] B.3 Remove the global empty-binary shortcut from `ValueDecoder.decode/3`
-- [ ] B.4 Preserve tests for actual character, numeric, float, logical, date, and memo blank representations from ADR 0004
-- [ ] B.5 Run `mix test`
-- [ ] B.6 Run `mix precommit`
+- [x] B.1 Add a regression proving a zero-width unsupported or malformed field cannot decode as `nil`
+- [x] B.2 Document and enforce the accepted profiles' minimum field widths during schema compilation
+- [x] B.3 Remove the global empty-binary shortcut from `ValueDecoder.decode/3`
+- [x] B.4 Preserve tests for actual character, numeric, float, logical, date, and memo blank representations from ADR 0004
+- [x] B.5 Record the malformed-schema fix under `[Unreleased]`
+- [x] B.6 Run `mix test`
+- [x] B.7 Run `mix precommit`
 
 ---
 

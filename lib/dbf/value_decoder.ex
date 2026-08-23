@@ -33,8 +33,6 @@ defmodule DBF.ValueDecoder do
   end
 
   @spec decode(DBF.Database.t(), Field.t(), binary()) :: term() | {:error, Error.t()}
-  def decode(_db, _field, ""), do: nil
-
   def decode(db, %{decoder: {:text, :character}}, value) do
     decode_text(db.text_decoder, value, :both)
   end

@@ -171,26 +171,45 @@ defmodule DBF.Schema do
   end
 
   defp compile_fields(fields, profile, header, options) do
-    {compiled, record_length, names} =
-      Enum.reduce(fields, {[], 1, %{}}, fn field, {compiled, offset, names} ->
-        compiled_field = %Field{
-          field
-          | record_offset: offset,
-            decoder: ValueDecoder.compile(field, profile, options)
-        }
+    with :ok <- validate_field_lengths(fields, profile) do
+      {compiled, record_length, names} =
+        Enum.reduce(fields, {[], 1, %{}}, fn field, {compiled, offset, names} ->
+          compiled_field = %Field{
+            field
+            | record_offset: offset,
+              decoder: ValueDecoder.compile(field, profile, options)
+          }
 
-        descriptor_offsets = Map.get(names, field.name, [])
+          descriptor_offsets = Map.get(names, field.name, [])
 
-        {
-          [compiled_field | compiled],
-          offset + field.length,
-          Map.put(names, field.name, [field.descriptor_offset | descriptor_offsets])
-        }
-      end)
+          {
+            [compiled_field | compiled],
+            offset + field.length,
+            Map.put(names, field.name, [field.descriptor_offset | descriptor_offsets])
+          }
+        end)
 
-    with :ok <- validate_unique_names(names),
-         :ok <- validate_record_width(record_length, header) do
-      {:ok, Enum.reverse(compiled)}
+      with :ok <- validate_unique_names(names),
+           :ok <- validate_record_width(record_length, header) do
+        {:ok, Enum.reverse(compiled)}
+      end
+    end
+  end
+
+  defp validate_field_lengths(fields, %FormatProfile{record_layout: :dbase_legacy}) do
+    case Enum.find(fields, &(&1.length < 1)) do
+      nil ->
+        :ok
+
+      field ->
+        {:error,
+         schema_error(:invalid_field_length, %{
+           field_name: field.name,
+           field_type: field.type,
+           field_length: field.length,
+           minimum: 1,
+           offset: field.descriptor_offset
+         })}
     end
   end
 
