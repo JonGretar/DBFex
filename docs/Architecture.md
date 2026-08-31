@@ -47,7 +47,7 @@ flowchart TD
     Opening --> Header[DBF.Header]
     Opening --> Schema[DBF.Schema]
     Opening --> Memo[DBF.Memo]
-    Opening --> Layout[DBF.LayoutHelpers]
+    Opening --> Layout[DBF.FieldDescriptorLayout]
 
     Schema --> Field[DBF.Field]
     Schema --> Text[DBF.TextDecoder]
@@ -553,7 +553,7 @@ failure actionable without forcing every internal detail into the stable API.
 | `DBF.Memo`                      | Memo-family facade and initialized memo metadata                                                      | Opening and value decoder                                                          |
 | `DBF.Memo.DBT3`                 | DBT III initialization, validation, and multi-block payload reading                                   | `DBF.Memo`                                                                         |
 | `DBF.Memo.DBT4`                 | DBT IV initialization, validation, and length-delimited payload reading                               | `DBF.Memo`                                                                         |
-| `DBF.LayoutHelpers`             | Shared descriptor start/size mappings and defensive binary-size reporting                             | Opening, header, and schema                                                        |
+| `DBF.FieldDescriptorLayout`     | Field-descriptor start/size mappings and layout-specific structural rules                              | Opening and schema                                                                 |
 | `DBF.Error`                     | Internal structured error and context enrichment                                                      | All internal layers                                                                |
 | `DBF.DatabaseError`             | Public error/exception and human-readable formatting                                                  | `DBF` and library callers                                                          |
 

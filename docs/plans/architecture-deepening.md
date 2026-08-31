@@ -200,13 +200,13 @@ accumulate in a `Helpers` module.
 layout behavior. At that point, keep it caller-local or move it only to a module
 that owns a broader, demonstrated error-context operation.
 
-**Status:** Deferred trigger. Do not perform this rename solely for aesthetics;
-execute it when new descriptor behavior gives the module meaningful depth.
+**Status:** Complete. The Visual FoxPro descriptor family triggered this work;
+binary-size error context remains caller-local.
 
-- [ ] G.1 Reassess when Phase 4 introduces the next field-descriptor layout
-- [ ] G.2 Create `DBF.FieldDescriptorLayout` with the complete demonstrated layout interface
-- [ ] G.3 Move descriptor start/size and related structural rules out of `LayoutHelpers`
-- [ ] G.4 Keep unrelated binary-size convenience out of the descriptor-layout module
-- [ ] G.5 Update callers and delete `DBF.LayoutHelpers` only when it has no cohesive responsibility left
-- [ ] G.6 Run `mix test`
-- [ ] G.7 Run `mix precommit`
+- [x] G.1 Reassess when Phase 4 introduces the next field-descriptor layout
+- [x] G.2 Create `DBF.FieldDescriptorLayout` with the complete demonstrated layout interface
+- [x] G.3 Move descriptor start/size and related structural rules out of `LayoutHelpers`
+- [x] G.4 Keep unrelated binary-size convenience out of the descriptor-layout module
+- [x] G.5 Update callers and delete `DBF.LayoutHelpers` only when it has no cohesive responsibility left
+- [x] G.6 Run `mix test`
+- [x] G.7 Run `mix precommit`

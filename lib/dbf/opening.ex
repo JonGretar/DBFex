@@ -3,9 +3,9 @@ defmodule DBF.Opening do
 
   alias DBF.Database
   alias DBF.Error
+  alias DBF.FieldDescriptorLayout
   alias DBF.FormatProfile
   alias DBF.Header
-  alias DBF.LayoutHelpers
   alias DBF.Memo
   alias DBF.Resource
   alias DBF.Schema
@@ -68,7 +68,7 @@ defmodule DBF.Opening do
   end
 
   defp read_schema(resource, profile, header) do
-    start = LayoutHelpers.descriptor_start(profile.field_descriptor_layout)
+    start = FieldDescriptorLayout.start(profile.field_descriptor_layout)
     length = header.header_length - start
     read_structure(resource, start, length, :invalid_schema)
   end

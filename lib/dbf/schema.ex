@@ -3,9 +3,9 @@ defmodule DBF.Schema do
 
   alias DBF.Error
   alias DBF.Field
+  alias DBF.FieldDescriptorLayout
   alias DBF.FormatProfile
   alias DBF.Header
-  alias DBF.LayoutHelpers
   alias DBF.TextDecoder
   alias DBF.ValueDecoder
 
@@ -24,7 +24,7 @@ defmodule DBF.Schema do
 
   def parse(binary, %FormatProfile{} = profile, %Header{} = header, options)
       when is_binary(binary) and is_list(options) do
-    descriptor_offset = LayoutHelpers.descriptor_start(profile.field_descriptor_layout)
+    descriptor_offset = FieldDescriptorLayout.start(profile.field_descriptor_layout)
 
     with {:ok, text_decoder} <- TextDecoder.compile(header.language_driver, options),
          :ok <- validate_schema_size(binary, header, descriptor_offset),
@@ -49,7 +49,7 @@ defmodule DBF.Schema do
   def parse(binary, profile, header, _options) do
     {:error,
      schema_error(:invalid_schema_input, %{
-       actual_bytes: LayoutHelpers.byte_size_if_binary(binary),
+       actual_bytes: byte_size_if_binary(binary),
        profile: profile,
        header: header
      })}
@@ -96,7 +96,7 @@ defmodule DBF.Schema do
   end
 
   defp parse_descriptors(binary, layout, text_decoder, offset, fields) do
-    size = LayoutHelpers.descriptor_size(layout)
+    size = FieldDescriptorLayout.size(layout)
 
     if byte_size(binary) < size do
       {:error,
@@ -257,4 +257,7 @@ defmodule DBF.Schema do
   end
 
   defp schema_error(cause, context), do: Error.new(:invalid_schema, cause, context)
+
+  defp byte_size_if_binary(binary) when is_binary(binary), do: byte_size(binary)
+  defp byte_size_if_binary(_binary), do: nil
 end

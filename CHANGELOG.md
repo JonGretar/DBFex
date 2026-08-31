@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added partial FoxPro 2.x `0xF5` support for fixed-width legacy fields and textual FPT memo blocks, including big-endian FPT headers, block metadata, bounds validation, and companion discovery.
 
+### Changed
+
+- Replaced the generic internal layout helper with cohesive field-descriptor layout ownership ahead of Visual FoxPro support.
+
 ## [0.2.1] - 2026-08-23
 
 ### Added

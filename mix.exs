@@ -90,9 +90,9 @@ defmodule DBF.MixProject do
       ~w(
         DBF.DatabaseError.from_internal
         DBF.Error
+        DBF.FieldDescriptorLayout
         DBF.FormatProfile
         DBF.Header
-        DBF.LayoutHelpers
         DBF.Memo
         DBF.Memo.FPT
         DBF.Opening

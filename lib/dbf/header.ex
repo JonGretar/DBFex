@@ -3,7 +3,6 @@ defmodule DBF.Header do
 
   alias DBF.Error
   alias DBF.FormatProfile
-  alias DBF.LayoutHelpers
 
   @foxbase_header_size 8
   @legacy_header_size 32
@@ -65,7 +64,7 @@ defmodule DBF.Header do
   def parse(binary, %FormatProfile{} = profile, _file_size) do
     {:error,
      invalid_header(:invalid_header_binary, %{
-       actual_bytes: LayoutHelpers.byte_size_if_binary(binary),
+       actual_bytes: byte_size_if_binary(binary),
        expected_bytes: header_size(profile.header_layout),
        offset: 0
      })}
@@ -226,4 +225,7 @@ defmodule DBF.Header do
 
   defp record_length_offset(:foxbase_8), do: 6
   defp record_length_offset(:dbase_legacy_32), do: 10
+
+  defp byte_size_if_binary(binary) when is_binary(binary), do: byte_size(binary)
+  defp byte_size_if_binary(_binary), do: nil
 end
