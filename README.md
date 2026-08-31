@@ -128,7 +128,7 @@ DBF.with_open(
 )
 ```
 
-The selected policy applies to field names, character values, and textual DBT
+The selected policy applies to field names, character values, and textual DBT/FPT
 memos. Binary and structural values are not decoded as text.
 
 ## Error handling
@@ -165,7 +165,8 @@ checked-in fixtures. A recognized version byte alone does not imply support.
 | dBASE III with DBT memo             | `0x83`                         | Verified    | Representative complete records, schema, exact numerics, logical states, multi-block memos, pointers, encoding overrides, and companion validation are covered. |
 | dBASE IV with DBT memo              | `0x8B`                         | Verified    | Representative schema and values, text policies, declared block sizing, multi-block memos, and companion validation are covered.                                |
 | FoxPro 2.x with FPT                 | `0xF5`                         | Partial     | Fixed-width `C`/`N`/`D` fields and textual `M` values are covered; binary fields and memo blocks remain unsupported.                                            |
-| Visual FoxPro tables/FPT            | `0x30`, `0x31`, `0x32`         | Planned     | Fixtures cover FPT, autoincrement, variable-width fields, null flags, and CP1251 text.                                                                          |
+| Visual FoxPro tables/FPT            | `0x30`                         | Partial     | Fixed-width legacy, integer, timestamp, and textual FPT memo values are covered; nullable, currency, binary, and database-container values remain unsupported.   |
+| Visual FoxPro autoincrement/variable | `0x31`, `0x32`                 | Planned     | Fixtures cover autoincrement metadata, variable-width fields, and null flags.                                                                                   |
 | dBASE Level 7-style tables          | `0x8C` fixture                 | Planned     | Extended header/descriptor and memo support are not implemented.                                                                                                |
 | DBF writing                         | —                              | Not planned | Read-only scope.                                                                                                                                                |
 | NDX/MDX/CDX/DCX index reading       | —                              | Not planned | Tracked separately from table reading.                                                                                                                          |

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added partial FoxPro 2.x `0xF5` support for fixed-width legacy fields and textual FPT memo blocks, including big-endian FPT headers, block metadata, bounds validation, and companion discovery.
+- Added partial Visual FoxPro `0x30` support for fixed-width tables, Windows-1251 text, little-endian integer and timestamp values, binary FPT pointers, field flags, and optional FPT companions.
 
 ### Changed
 

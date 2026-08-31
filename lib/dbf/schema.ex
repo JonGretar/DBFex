@@ -82,13 +82,19 @@ defmodule DBF.Schema do
   end
 
   defp parse_descriptors(
-         <<0x0D, _padding::binary>>,
-         _layout,
+         <<0x0D, tail::binary>>,
+         layout,
          _text_decoder,
-         _offset,
+         offset,
          fields
        ) do
-    {:ok, Enum.reverse(fields)}
+    case FieldDescriptorLayout.validate_tail(layout, tail) do
+      :ok ->
+        {:ok, Enum.reverse(fields)}
+
+      {:error, cause, context} ->
+        {:error, schema_error(cause, Map.put(context, :offset, offset + 1))}
+    end
   end
 
   defp parse_descriptors(<<>>, _layout, _text_decoder, offset, _fields) do
@@ -170,8 +176,38 @@ defmodule DBF.Schema do
     end
   end
 
+  # Visual FoxPro field descriptor:
+  # https://learn.microsoft.com/en-us/previous-versions/visualstudio/foxpro/st4a0s68(v=vs.71)
+  defp decode_descriptor(
+         <<raw_name::binary-size(11), type::binary-size(1),
+           address::little-unsigned-integer-size(32), length, decimal, flags,
+           autoincrement::binary-size(5), reserved::binary-size(8)>> = raw,
+         :visual_foxpro_32,
+         text_decoder,
+         offset
+       ) do
+    with {:ok, name} <- decode_name(raw_name, text_decoder, offset) do
+      {:ok,
+       %Field{
+         name: name,
+         type: type,
+         length: length,
+         decimal: decimal,
+         address: address,
+         flags: flags,
+         work_area: nil,
+         set_fields_flag: nil,
+         descriptor_offset: offset,
+         raw_descriptor: raw,
+         reserved: autoincrement <> reserved
+       }}
+    end
+  end
+
   defp compile_fields(fields, profile, header, options) do
-    with :ok <- validate_field_lengths(fields, profile) do
+    with :ok <- validate_field_lengths(fields, profile),
+         :ok <- validate_field_widths(fields, profile),
+         :ok <- validate_field_flags(fields, profile) do
       {compiled, record_length, names} =
         Enum.reduce(fields, {[], 1, %{}}, fn field, {compiled, offset, names} ->
           compiled_field = %Field{
@@ -212,6 +248,60 @@ defmodule DBF.Schema do
          })}
     end
   end
+
+  defp validate_field_widths(
+         fields,
+         %FormatProfile{field_descriptor_layout: :visual_foxpro_32}
+       ) do
+    expected_widths = %{"I" => 4, "M" => 4, "T" => 8}
+
+    case Enum.find(fields, &invalid_field_width?(&1, expected_widths)) do
+      nil ->
+        :ok
+
+      field ->
+        {:error,
+         schema_error(:invalid_field_length, %{
+           field_name: field.name,
+           field_type: field.type,
+           field_length: field.length,
+           expected: Map.fetch!(expected_widths, field.type),
+           offset: field.descriptor_offset + 16
+         })}
+    end
+  end
+
+  defp validate_field_widths(_fields, _profile), do: :ok
+
+  defp invalid_field_width?(field, expected_widths) do
+    case Map.fetch(expected_widths, field.type) do
+      {:ok, expected} -> field.length != expected
+      :error -> false
+    end
+  end
+
+  defp validate_field_flags(
+         fields,
+         %FormatProfile{field_descriptor_layout: :visual_foxpro_32}
+       ) do
+    case Enum.find(fields, fn field ->
+           field.flags != 0x00 and not (field.flags == 0x04 and field.type in ["I", "T"])
+         end) do
+      nil ->
+        :ok
+
+      field ->
+        {:error,
+         schema_error(:unsupported_field_flags, %{
+           field_name: field.name,
+           field_type: field.type,
+           field_flags: field.flags,
+           offset: field.descriptor_offset + 18
+         })}
+    end
+  end
+
+  defp validate_field_flags(_fields, _profile), do: :ok
 
   defp validate_unique_names(names) do
     case Enum.find(names, fn {_name, offsets} -> length(offsets) > 1 end) do

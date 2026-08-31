@@ -2,9 +2,9 @@
 
 This document explains how DBFex reads DBF tables, how its modules collaborate,
 and which invariants hold the implementation together. It describes the current
-reader after Phases -1 through 3 and the first partial Phase 4 FoxPro slice.
-Broader FoxPro, Visual FoxPro, variable-width, and explicit-null support is
-called out separately and must not be mistaken for implemented behavior.
+reader after Phases -1 through 3 and the first partial Phase 4 FoxPro and Visual
+FoxPro slices. Broader Visual FoxPro, variable-width, and explicit-null support
+is called out separately and must not be mistaken for implemented behavior.
 
 For byte-level format notes and source references, see [`DBF-Format.md`](DBF-Format.md).
 For the decisions behind this architecture, see [`docs/adr/`](https://github.com/JonGretar/DBFex/tree/main/docs/adr).
@@ -197,6 +197,7 @@ composition of independent axes:
 - header layout;
 - field-descriptor layout;
 - memo family;
+- memo requirement;
 - record layout;
 - supported field kinds.
 
@@ -207,12 +208,14 @@ same.
 
 Current profiles are:
 
-| Version | Label               | Header             | Descriptor         | Memo    | Supported field kinds                    |
-| ------- | ------------------- | ------------------ | ------------------ | ------- | ---------------------------------------- |
-| `0x02`  | FoxBase             | `:foxbase_8`       | `:foxbase_16`      | none    | character, unscaled numeric              |
-| `0x03`  | dBASE III           | `:dbase_legacy_32` | `:dbase_legacy_32` | none    | character, numeric, float, logical, date |
-| `0x83`  | dBASE III with memo | `:dbase_legacy_32` | `:dbase_legacy_32` | DBT III | legacy kinds plus text memo              |
-| `0x8B`  | dBASE IV with memo  | `:dbase_legacy_32` | `:dbase_legacy_32` | DBT IV  | legacy kinds plus text memo              |
+| Version | Label               | Header               | Descriptor           | Memo    | Supported field kinds                       |
+| ------- | ------------------- | -------------------- | -------------------- | ------- | ------------------------------------------- |
+| `0x02`  | FoxBase             | `:foxbase_8`         | `:foxbase_16`        | none    | character, unscaled numeric                 |
+| `0x03`  | dBASE III           | `:dbase_legacy_32`   | `:dbase_legacy_32`   | none    | character, numeric, float, logical, date    |
+| `0x30`  | Visual FoxPro       | `:visual_foxpro_32` | `:visual_foxpro_32` | optional FPT | legacy kinds, integer, timestamp, text memo |
+| `0x83`  | dBASE III with memo | `:dbase_legacy_32`   | `:dbase_legacy_32`   | DBT III | legacy kinds plus text memo                 |
+| `0x8B`  | dBASE IV with memo  | `:dbase_legacy_32`   | `:dbase_legacy_32`   | DBT IV  | legacy kinds plus text memo                 |
+| `0xF5`  | FoxPro 2.x          | `:dbase_legacy_32`   | `:dbase_legacy_32`   | FPT     | legacy kinds plus text memo                 |
 
 A recognized one-byte field type is not enough to enable decoding. The selected
 profile must explicitly advertise that field kind. Unsupported capabilities are
@@ -246,13 +249,14 @@ Schema parsing consumes the descriptor region ending at the header boundary. It:
 1. Compiles one `DBF.TextDecoder` from the language driver and options.
 2. Parses descriptors using the selected descriptor layout.
 3. Requires the `0x0D` descriptor terminator.
-4. Decodes field names before duplicate-name validation.
-5. Rejects duplicate caller-visible field names.
-6. Rejects zero-width fields in current fixed-width profiles.
-7. Verifies that `1 + sum(field widths)` equals the declared record length. The
+4. Validates the 263-byte Visual FoxPro backlink area when applicable.
+5. Decodes field names before duplicate-name validation.
+6. Rejects duplicate caller-visible field names.
+7. Rejects zero-width fields and unsupported Visual FoxPro field flags.
+8. Verifies that `1 + sum(field widths)` equals the declared record length. The
    extra byte is the deletion/status marker.
-8. Assigns each field a sequential `record_offset` beginning at byte `1`.
-9. Compiles a decoder tag for each field through `DBF.ValueDecoder.compile/3`.
+9. Assigns each field a sequential `record_offset` beginning at byte `1`.
+10. Compiles a decoder tag for each field through `DBF.ValueDecoder.compile/3`.
 
 The result is `%DBF.Schema{fields, record_length, text_decoder}`. Each
 `%DBF.Field{}` preserves descriptor metadata and raw descriptor bytes while also
@@ -370,6 +374,9 @@ option into a decoder tag stored on the field. `decode/3` dispatches on that tag
 | Logical                        | `Y/y/T/t` is `true`; `N/n/F/f` is `false`; `?` or space is `nil`; otherwise error                        |
 | Date                           | Eight spaces is `nil`; otherwise parse `YYYYMMDD` into `Date` or return an error                         |
 | Text memo                      | Parse a decimal block pointer, read memo bytes lazily, then apply the table text decoder; blank is `nil` |
+| Visual FoxPro integer          | Decode a signed little-endian 32-bit integer                                                            |
+| Visual FoxPro timestamp        | Decode little-endian Julian day and milliseconds into `NaiveDateTime`; all-zero is `nil`                 |
+| Visual FoxPro text memo        | Decode a little-endian 32-bit FPT pointer, then read and text-decode its declared payload                |
 | Unsupported                    | Return `:unsupported_field_type` when the record is read                                                 |
 
 For current legacy profiles, `nil` represents a format-specific blank value, not
@@ -382,7 +389,7 @@ One `%DBF.TextDecoder{}` is compiled during schema parsing and reused for:
 
 - field names;
 - character values;
-- textual DBT memo payloads.
+- textual DBT and FPT memo payloads.
 
 Numeric and structural bytes do not pass through text conversion. Padding is
 removed from source bytes before code-page conversion.
@@ -414,10 +421,11 @@ Memo support is selected by `FormatProfile.memo_family`, not by extension.
 `DBF.Memo` is the small dispatch facade and `%DBF.Memo{}` stores initialized
 family and block-size metadata.
 
-Memo-capable profiles require a usable companion during opening. An explicit
-`:memo_file` path is tried alone; otherwise DBFex tries the table root with
-the lower- and uppercase extension appropriate to the selected family: `.dbt`
-and `.DBT`, or `.fpt` and `.FPT`. The extension locates a candidate—it does not
+Memo-required profiles require a usable companion during opening. Visual FoxPro
+uses its table flags to make FPT acquisition conditional. An explicit
+`:memo_file` path is tried alone; otherwise DBFex tries the table root with the
+lower- and uppercase extension appropriate to the selected family: `.dbt` and
+`.DBT`, or `.fpt` and `.FPT`. The extension locates a candidate—it does not
 determine which algorithm parses it.
 
 Opening scans memo fields across physical records for the first nonblank block
@@ -606,11 +614,11 @@ variation, not only by the possibility of a future implementation.
 
 The following are roadmap items, not current architecture:
 
-- Visual FoxPro table profiles and broader FoxPro field capabilities;
+- Visual FoxPro `0x31`/`0x32` profiles and broader FoxPro field capabilities;
 - binary FPT memo blocks;
 - little-endian integer/currency and timestamp fields;
 - binary Picture/General values;
-- VFP field flags, backlink data, and autoincrement metadata;
+- VFP nullable/autoincrement field flags and autoincrement metadata;
 - variable-width `Varchar`, `Varbinary`, and `Blob` values;
 - per-record length metadata and explicit null bitmaps;
 - dBASE Level 5/7 and 48-byte Level 7 descriptors;
@@ -618,9 +626,6 @@ The following are roadmap items, not current architecture:
 - writer/editor support;
 - NDX, MDX, CDX, and other index readers;
 - a stable public metadata API.
-
-The CP1251 Visual FoxPro fixture currently provides text-decoder evidence only;
-it does not enable a Visual FoxPro table profile.
 
 Database representation, a possible physical record-reader module, and cohesive
 field-descriptor layout ownership are intentionally being reassessed alongside

@@ -26,7 +26,9 @@ defmodule DBF.Field do
           | {:numeric, DBF.numeric_policy() | :exact_unscaled}
           | :memo
           | :date
-  @type decoder :: {:text, text_decoder()} | {:unsupported, binary()}
+  @type binary_decoder :: :integer | :datetime | :text_memo
+  @type decoder ::
+          {:text, text_decoder()} | {:binary, binary_decoder()} | {:unsupported, binary()}
 
   @type t :: %__MODULE__{
           name: binary(),

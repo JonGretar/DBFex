@@ -3,7 +3,7 @@ defmodule DBF.TextDecoderTest do
 
   alias DBF.TextDecoder
 
-  test "decodes the planned CP1251 fixture without enabling its Visual FoxPro profile" do
+  test "decodes every name in the CP1251 fixture at the decoder level" do
     binary = File.read!("test/dbf_files/cp1251.dbf")
 
     <<_::binary-size(4), record_count::little-unsigned-integer-size(32),

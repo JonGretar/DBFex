@@ -44,8 +44,8 @@ defmodule DBF.FixtureManifest do
         encoding: {:windows_1251, {:ldid, 0xC9}}
       },
       provenance: @shared_provenance,
-      support: :planned,
-      exercise: {:unsupported_open, 0x30},
+      support: :partial,
+      exercise: {:open, %{records: 4, fields: 2}},
       expected_values: {:schema_sidecar, "test/dbf_files/cp1251_summary.txt"},
       normative_sources: [:visual_foxpro]
     },
@@ -96,8 +96,8 @@ defmodule DBF.FixtureManifest do
         encoding: {:ldid, 0x03}
       },
       provenance: @shared_provenance,
-      support: :planned,
-      exercise: {:unsupported_open, 0x30},
+      support: :partial,
+      exercise: {:open, %{records: 34, fields: 145}},
       expected_values: {:schema_sidecar, "test/dbf_files/dbase_30_summary.txt"},
       normative_sources: [:visual_foxpro, :visual_foxpro_fpt]
     },
@@ -234,7 +234,7 @@ defmodule DBF.FixtureManifest do
       },
       provenance: @shared_provenance,
       support: :reference_only,
-      exercise: {:unsupported_open, 0x30},
+      exercise: {:header_only, 0x30},
       expected_values: :none,
       normative_sources: [:visual_foxpro, :visual_foxpro_fpt]
     },
@@ -247,8 +247,8 @@ defmodule DBF.FixtureManifest do
       },
       profile: %{format: :visual_foxpro, version: 0x30, memo: :fpt, encoding: {:ldid, 0x03}},
       provenance: @shared_provenance,
-      support: :planned,
-      exercise: {:unsupported_open, 0x30},
+      support: :partial,
+      exercise: {:open, %{records: 16, fields: 6}},
       expected_values: :none,
       normative_sources: [:visual_foxpro, :visual_foxpro_fpt]
     },
@@ -261,8 +261,8 @@ defmodule DBF.FixtureManifest do
       },
       profile: %{format: :visual_foxpro, version: 0x30, memo: :fpt, encoding: {:ldid, 0x03}},
       provenance: @shared_provenance,
-      support: :planned,
-      exercise: {:unsupported_open, 0x30},
+      support: :partial,
+      exercise: {:open, %{records: 5, fields: 29}},
       expected_values: :none,
       normative_sources: [:visual_foxpro, :visual_foxpro_fpt]
     },
@@ -274,8 +274,8 @@ defmodule DBF.FixtureManifest do
       },
       profile: %{format: :visual_foxpro, version: 0x30, memo: :none, encoding: {:ldid, 0x03}},
       provenance: @shared_provenance,
-      support: :planned,
-      exercise: {:unsupported_open, 0x30},
+      support: :partial,
+      exercise: {:open, %{records: 3, fields: 2}},
       expected_values: :none,
       normative_sources: [:visual_foxpro]
     },
@@ -287,8 +287,8 @@ defmodule DBF.FixtureManifest do
       },
       profile: %{format: :visual_foxpro, version: 0x30, memo: :none, encoding: {:ldid, 0x03}},
       provenance: @shared_provenance,
-      support: :planned,
-      exercise: {:unsupported_open, 0x30},
+      support: :partial,
+      exercise: {:open, %{records: 2, fields: 2}},
       expected_values: :none,
       normative_sources: [:visual_foxpro]
     },

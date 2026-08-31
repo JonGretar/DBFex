@@ -375,7 +375,8 @@ contains DBF/FPT fixtures for both.
 - [x] Implement FPT headers and text blocks with their specified big-endian values.
 - [ ] Support and test baseline FoxPro/VFP field types used by the fixtures,
       including little-endian integer/currency values and timestamp values.
-- [ ] Support text memos and preserve binary picture/general data as binaries.
+- [x] Support text memos with decimal FoxPro or binary Visual FoxPro pointers.
+- [ ] Preserve binary picture/general data as binaries.
 - [ ] Parse VFP table flags, code page, field flags, and the optional backlink
       area without treating them as dBASE IV metadata.
 

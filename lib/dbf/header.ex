@@ -81,7 +81,7 @@ defmodule DBF.Header do
   end
 
   defp validate_binary_size(binary, layout)
-       when layout in [:foxbase_8, :dbase_legacy_32] do
+       when layout in [:foxbase_8, :dbase_legacy_32, :visual_foxpro_32] do
     expected = header_size(layout)
     actual = byte_size(binary)
 
@@ -120,16 +120,18 @@ defmodule DBF.Header do
      }}
   end
 
-  # dBASE III/IV layout reference:
+  # dBASE III/IV and Visual FoxPro share these core header offsets:
   # https://blogs.embarcadero.com/dbase-dbf-file-structure/
+  # https://learn.microsoft.com/en-us/previous-versions/visualstudio/foxpro/st4a0s68(v=vs.71)
   defp decode(
          <<version, year, month, day, record_count::little-unsigned-integer-size(32),
            header_length::little-unsigned-integer-size(16),
            record_length::little-unsigned-integer-size(16), _reserved_1::binary-size(2),
            _transaction, _encryption, _reserved_2::binary-size(12), table_flags, language_driver,
            _reserved_3::binary-size(2)>>,
-         :dbase_legacy_32
-       ) do
+         layout
+       )
+       when layout in [:dbase_legacy_32, :visual_foxpro_32] do
     {:ok,
      %{
        version: version,
@@ -178,8 +180,9 @@ defmodule DBF.Header do
      })}
   end
 
-  defp validate_lengths(%{header_length: header_length}, :dbase_legacy_32)
-       when header_length < 33 do
+  defp validate_lengths(%{header_length: header_length}, layout)
+       when layout in [:dbase_legacy_32, :visual_foxpro_32] and
+              header_length < 33 do
     {:error,
      invalid_header(:invalid_header_length, %{
        header_length: header_length,
@@ -221,10 +224,12 @@ defmodule DBF.Header do
 
   defp header_size(:foxbase_8), do: @foxbase_header_size
   defp header_size(:dbase_legacy_32), do: @legacy_header_size
+  defp header_size(:visual_foxpro_32), do: @legacy_header_size
   defp header_size(_layout), do: 0
 
   defp record_length_offset(:foxbase_8), do: 6
   defp record_length_offset(:dbase_legacy_32), do: 10
+  defp record_length_offset(:visual_foxpro_32), do: 10
 
   defp byte_size_if_binary(binary) when is_binary(binary), do: byte_size(binary)
   defp byte_size_if_binary(_binary), do: nil

@@ -1,6 +1,8 @@
 defmodule DBF.Opening do
   @moduledoc false
 
+  import Bitwise, only: [band: 2]
+
   alias DBF.Database
   alias DBF.Error
   alias DBF.FieldDescriptorLayout
@@ -97,6 +99,24 @@ defmodule DBF.Opening do
     end
   end
 
+  defp initialize_memo(
+         _resource,
+         _filename,
+         options,
+         %FormatProfile{memo_requirement: :table_flag},
+         %{table_flags: table_flags},
+         _schema
+       )
+       when band(table_flags, 0x02) == 0 do
+    case Keyword.fetch!(options, :memo_file) do
+      nil ->
+        {:ok, nil}
+
+      memo_path ->
+        {:error, Error.new(:invalid_options, :memo_not_supported, %{memo_file: memo_path})}
+    end
+  end
+
   defp initialize_memo(resource, filename, options, %FormatProfile{} = profile, header, schema) do
     with {:ok, probe_block} <- find_memo_probe(resource, header, schema) do
       paths = memo_paths(filename, Keyword.fetch!(options, :memo_file), profile.memo_family)
@@ -157,6 +177,15 @@ defmodule DBF.Opening do
       {:error, %Error{} = error} ->
         {:error, %Error{error | reason: :invalid_memo}}
     end
+  end
+
+  defp parse_memo_probe(
+         <<block::little-unsigned-integer-size(32)>>,
+         _record_number,
+         %{decoder: {:binary, :text_memo}},
+         _offset
+       ) do
+    {:ok, if(block == 0, do: nil, else: block)}
   end
 
   defp parse_memo_probe(raw_pointer, record_number, field, offset) do

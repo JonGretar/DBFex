@@ -19,7 +19,7 @@ policies.
 ## Decision
 
 Compile one text decoder while opening a table and use it consistently for field
-names, character values, and textual DBT memo payloads. Fixed-width padding is
+names, character values, and textual memo payloads. Fixed-width padding is
 removed as bytes before conversion. Numeric and structural bytes are parsed as
 bytes, and binary values are never sent through text conversion.
 
@@ -41,9 +41,10 @@ contextual `:invalid_encoding` error, `:replace` inserts U+FFFD, and `:raw`
 returns the original byte string. A caller encoding overrides a missing or
 incorrect driver ID.
 
-The CP1251 fixture remains a planned Visual FoxPro format. Its record bytes are
-used directly as decoder evidence; this decision does not enable its unsupported
-header, record, or field capabilities.
+At the time of this decision, the CP1251 fixture remained a planned Visual
+FoxPro format and its record bytes were used directly as decoder evidence. Phase
+4 later enabled its fixed-width `0x30` profile without changing this encoding
+policy.
 
 ## Consequences
 

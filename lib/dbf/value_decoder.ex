@@ -20,6 +20,9 @@ defmodule DBF.ValueDecoder do
   defp compile_kind(:logical, _options), do: {:text, :logical}
   defp compile_kind(:date, _options), do: {:text, :date}
   defp compile_kind(:text_memo, _options), do: {:text, :memo}
+  defp compile_kind(:integer, _options), do: {:binary, :integer}
+  defp compile_kind(:datetime, _options), do: {:binary, :datetime}
+  defp compile_kind(:text_memo_binary_pointer, _options), do: {:binary, :text_memo}
 
   defp compile_kind(:numeric, options) do
     {:text, {:numeric, Keyword.get(options, :numeric, :float)}}
@@ -107,16 +110,51 @@ defmodule DBF.ValueDecoder do
         {:error, Error.new(:invalid_memo, :invalid_memo_pointer, %{raw_pointer: new_value})}
 
       {block, ""} ->
-        case Memo.get_block(db.resource, db.memo_file, block) do
-          {:error, %Error{}} = error -> error
-          memo -> decode_text(db.text_decoder, memo, :none)
-        end
+        read_text_memo(db, block)
 
       :error when new_value == "" ->
         nil
 
       :error ->
         {:error, Error.new(:invalid_memo, :invalid_memo_pointer, %{raw_pointer: new_value})}
+    end
+  end
+
+  def decode(
+        db,
+        %{decoder: {:binary, :text_memo}},
+        <<block::little-unsigned-integer-size(32)>>
+      ) do
+    if block == 0, do: nil, else: read_text_memo(db, block)
+  end
+
+  def decode(
+        _db,
+        %{decoder: {:binary, :integer}},
+        <<integer::little-signed-integer-size(32)>>
+      ) do
+    integer
+  end
+
+  def decode(_db, %{decoder: {:binary, :datetime}}, <<0::size(64)>>), do: nil
+
+  def decode(
+        _db,
+        %{decoder: {:binary, :datetime}},
+        <<julian_day::little-unsigned-integer-size(32),
+          milliseconds::little-unsigned-integer-size(32)>> = value
+      ) do
+    gregorian_days = julian_day - 1_721_060
+
+    if gregorian_days >= 0 and milliseconds < 86_400_000 do
+      date = Date.from_gregorian_days(gregorian_days)
+      seconds = div(milliseconds, 1000)
+      precision = {rem(milliseconds, 1000) * 1000, 3}
+      time = Time.from_seconds_after_midnight(seconds, precision)
+      {:ok, datetime} = NaiveDateTime.new(date, time)
+      datetime
+    else
+      invalid_value("Invalid datetime value: #{inspect(value)}")
     end
   end
 
@@ -147,6 +185,13 @@ defmodule DBF.ValueDecoder do
     case TextDecoder.decode(text_decoder, value, trim) do
       {:ok, decoded} -> decoded
       {:error, %Error{}} = error -> error
+    end
+  end
+
+  defp read_text_memo(db, block) do
+    case Memo.get_block(db.resource, db.memo_file, block) do
+      {:error, %Error{}} = error -> error
+      memo -> decode_text(db.text_decoder, memo, :none)
     end
   end
 
