@@ -2,7 +2,7 @@
 
 - Status: Active
 - Last updated: 2026-08-22
-- Progress: Phases -1 through 3 complete; Phase 4 is next
+- Progress: Phases -1 through 3 complete; Phase 4.1 in progress
 
 This is a living implementation roadmap. Durable architectural decisions are
 recorded separately under `docs/adr/`.
@@ -372,7 +372,7 @@ or move resource I/O into the pure `DBF.Record` decoder.
 Target version bytes `0xF5` and `0x30` first because the repository already
 contains DBF/FPT fixtures for both.
 
-- [ ] Implement FPT headers and blocks with their specified big-endian values.
+- [x] Implement FPT headers and text blocks with their specified big-endian values.
 - [ ] Support and test baseline FoxPro/VFP field types used by the fixtures,
       including little-endian integer/currency values and timestamp values.
 - [ ] Support text memos and preserve binary picture/general data as binaries.

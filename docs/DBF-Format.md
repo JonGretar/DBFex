@@ -53,7 +53,7 @@ parsers.
 - Put schema parsing, duplicate-name validation, and compiled record offsets in
   `DBF.Schema`; keep `DBF.Field` as one field's metadata.
 - Keep genuinely different memo algorithms in `DBF.Memo.DBT3`,
-  `DBF.Memo.DBT4`, and later `DBF.Memo.FPT`, behind a small facade.
+  `DBF.Memo.DBT4`, and `DBF.Memo.FPT` behind a small facade.
 - Keep shared header logic together until another layout makes separate modules
   materially clearer.
 - Keep record decoding profile-aware through compiled schema metadata, not raw
@@ -79,6 +79,9 @@ See [`ADR 0003`](https://github.com/JonGretar/DBFex/blob/main/docs/adr/0003-comp
 - The verified dBASE IV fixture stores its little-endian block size at DBT header
   offset 20, uses `FF FF 08 00` block signatures, includes the 8-byte block
   header in each declared memo length, and uses `0x1F` as a text terminator.
+- The partial FoxPro 2.x fixture stores its big-endian block size at FPT header
+  offset 6, uses block type `1` for text, and excludes the 8-byte block header
+  from each big-endian declared payload length.
 - A memo may span several blocks. Bounds-check `block * block_size`, headers,
   and declared payload lengths before allocating or reading.
 - Memo, General, Picture, Blob, and binary-flagged Character/Memo values are not

@@ -94,6 +94,7 @@ defmodule DBF.MixProject do
         DBF.Header
         DBF.LayoutHelpers
         DBF.Memo
+        DBF.Memo.FPT
         DBF.Opening
         DBF.Record
         DBF.Resource

@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Added partial FoxPro 2.x `0xF5` support for fixed-width legacy fields and textual FPT memo blocks, including big-endian FPT headers, block metadata, bounds validation, and companion discovery.
+
 ## [0.2.1] - 2026-08-23
 
 ### Added

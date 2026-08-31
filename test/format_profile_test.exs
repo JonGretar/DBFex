@@ -9,7 +9,8 @@ defmodule DBF.FormatProfileTest do
       {0x02, :foxbase_8, :foxbase_16, :none},
       {0x03, :dbase_legacy_32, :dbase_legacy_32, :none},
       {0x83, :dbase_legacy_32, :dbase_legacy_32, :dbt_iii},
-      {0x8B, :dbase_legacy_32, :dbase_legacy_32, :dbt_iv}
+      {0x8B, :dbase_legacy_32, :dbase_legacy_32, :dbt_iv},
+      {0xF5, :dbase_legacy_32, :dbase_legacy_32, :fpt}
     ]
 
     for {version, header_layout, field_descriptor_layout, memo_family} <- expected do
@@ -32,7 +33,7 @@ defmodule DBF.FormatProfileTest do
     refute Map.has_key?(no_memo.field_kinds, "M")
     refute Map.has_key?(no_memo.field_kinds, "I")
 
-    for version <- [0x83, 0x8B] do
+    for version <- [0x83, 0x8B, 0xF5] do
       assert {:ok, profile} = FormatProfile.select(version)
       assert profile.field_kinds["M"] == :text_memo
       refute Map.has_key?(profile.field_kinds, "I")
@@ -41,7 +42,7 @@ defmodule DBF.FormatProfileTest do
   end
 
   test "rejects every other version with contextual information" do
-    for version <- 0..255, version not in [0x02, 0x03, 0x83, 0x8B] do
+    for version <- 0..255, version not in [0x02, 0x03, 0x83, 0x8B, 0xF5] do
       assert {:error,
               %Error{
                 reason: :unsupported_version,

@@ -2,9 +2,9 @@
 
 This document explains how DBFex reads DBF tables, how its modules collaborate,
 and which invariants hold the implementation together. It describes the current
-reader after Phases -1 through 3 of the reader roadmap. Planned FoxPro, Visual
-FoxPro, FPT, variable-width, and explicit-null support is called out separately
-and must not be mistaken for implemented behavior.
+reader after Phases -1 through 3 and the first partial Phase 4 FoxPro slice.
+Broader FoxPro, Visual FoxPro, variable-width, and explicit-null support is
+called out separately and must not be mistaken for implemented behavior.
 
 For byte-level format notes and source references, see [`DBF-Format.md`](DBF-Format.md).
 For the decisions behind this architecture, see [`docs/adr/`](https://github.com/JonGretar/DBFex/tree/main/docs/adr).
@@ -416,8 +416,9 @@ family and block-size metadata.
 
 Memo-capable profiles require a usable companion during opening. An explicit
 `:memo_file` path is tried alone; otherwise DBFex tries the table root with
-`.dbt` and `.DBT`. The extension locates a candidate—it does not determine which
-algorithm parses it.
+the lower- and uppercase extension appropriate to the selected family: `.dbt`
+and `.DBT`, or `.fpt` and `.FPT`. The extension locates a candidate—it does not
+determine which algorithm parses it.
 
 Opening scans memo fields across physical records for the first nonblank block
 pointer. That probe provides evidence for family validation. A table with only
@@ -449,6 +450,17 @@ blank memo pointers still requires a structurally valid companion.
 - first `0x1F` or `0x1A` text termination;
 - ASCII-whitespace trimming before the shared table text decoder is applied by
   `DBF.ValueDecoder`.
+
+### FPT
+
+`DBF.Memo.FPT` implements the evidenced FoxPro 2.x text-memo subset:
+
+- a 512-byte header;
+- big-endian next-block and block-size values;
+- header and file-size consistency checks;
+- big-endian block type and payload length values;
+- exact declared-length payload reads spanning physical blocks;
+- rejection of out-of-range pointers, truncated payloads, and non-text blocks.
 
 Memo payloads are not cached. Reading a memo field performs positional reads
 through the same resource owner as the table.
@@ -594,8 +606,8 @@ variation, not only by the possibility of a future implementation.
 
 The following are roadmap items, not current architecture:
 
-- FoxPro 2.x and Visual FoxPro table profiles;
-- FPT memo files;
+- Visual FoxPro table profiles and broader FoxPro field capabilities;
+- binary FPT memo blocks;
 - little-endian integer/currency and timestamp fields;
 - binary Picture/General values;
 - VFP field flags, backlink data, and autoincrement metadata;

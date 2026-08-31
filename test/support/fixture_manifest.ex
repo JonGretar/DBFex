@@ -204,8 +204,8 @@ defmodule DBF.FixtureManifest do
       },
       profile: %{format: :foxpro, version: 0xF5, memo: :fpt, encoding: {:ldid, 0x00}},
       provenance: @shared_provenance,
-      support: :planned,
-      exercise: {:unsupported_open, 0xF5},
+      support: :partial,
+      exercise: {:open, %{records: 975, fields: 59}},
       expected_values: {:schema_sidecar, "test/dbf_files/dbase_f5_summary.txt"},
       normative_sources: [:visual_foxpro_fpt, :older_xbase_secondary]
     },

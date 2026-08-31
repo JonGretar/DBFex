@@ -24,7 +24,7 @@ defmodule DBF.FormatProfile do
 
   @type header_layout :: :foxbase_8 | :dbase_legacy_32
   @type field_descriptor_layout :: :foxbase_16 | :dbase_legacy_32
-  @type memo_family :: :none | :dbt_iii | :dbt_iv
+  @type memo_family :: :none | :dbt_iii | :dbt_iv | :fpt
   @type record_layout :: :dbase_legacy
   @type field_kind ::
           :character | :numeric | :numeric_unscaled | :float | :logical | :date | :text_memo
@@ -83,6 +83,15 @@ defmodule DBF.FormatProfile do
       header_layout: :dbase_legacy_32,
       field_descriptor_layout: :dbase_legacy_32,
       memo_family: :dbt_iv,
+      record_layout: :dbase_legacy,
+      field_kinds: @memo_field_kinds
+    },
+    0xF5 => %{
+      version: 0xF5,
+      label: "FoxPro 2.x with memo file",
+      header_layout: :dbase_legacy_32,
+      field_descriptor_layout: :dbase_legacy_32,
+      memo_family: :fpt,
       record_layout: :dbase_legacy,
       field_kinds: @memo_field_kinds
     }

@@ -99,7 +99,7 @@ defmodule DBF.Opening do
 
   defp initialize_memo(resource, filename, options, %FormatProfile{} = profile, header, schema) do
     with {:ok, probe_block} <- find_memo_probe(resource, header, schema) do
-      paths = memo_paths(filename, Keyword.fetch!(options, :memo_file))
+      paths = memo_paths(filename, Keyword.fetch!(options, :memo_file), profile.memo_family)
       acquire_and_initialize_memo(resource, paths, profile, probe_block, nil)
     end
   end
@@ -181,11 +181,15 @@ defmodule DBF.Opening do
     end
   end
 
-  defp memo_paths(_filename, memo_path) when is_binary(memo_path), do: [memo_path]
+  defp memo_paths(_filename, memo_path, _family) when is_binary(memo_path), do: [memo_path]
 
-  defp memo_paths(filename, nil) do
+  defp memo_paths(filename, nil, family) do
     root = Path.rootname(filename)
-    [root <> ".dbt", root <> ".DBT"]
+
+    case family do
+      family when family in [:dbt_iii, :dbt_iv] -> [root <> ".dbt", root <> ".DBT"]
+      :fpt -> [root <> ".fpt", root <> ".FPT"]
+    end
   end
 
   defp validate_options(options) when is_list(options) do
