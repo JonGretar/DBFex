@@ -22,9 +22,8 @@ defmodule DBF.MixProject do
 
   defp description do
     """
-    Read DBASE files in Elixir.
-
-    At the moment it only supports read.
+    Read FoxBase, dBASE III/IV, FoxPro, and Visual FoxPro DBF files in Elixir,
+    including DBT and FPT memo data.
     """
   end
 
