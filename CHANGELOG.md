@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added partial Visual FoxPro `0x31` support for autoincrement metadata, exact `Decimal` currency values, and record null bitmaps.
+- Added partial Visual FoxPro `0x32` support for variable-width text and binary fields, including per-record stored-length metadata.
 
 ## [0.3.0] - 2026-08-31
 

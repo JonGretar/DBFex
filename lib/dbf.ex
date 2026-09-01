@@ -80,7 +80,8 @@ defmodule DBF do
   Visual FoxPro Currency (`Y`) values always decode to exact `Decimal` values,
   independently of the `:numeric` option. Nullable `0x31` fields return `nil`
   when their record bitmap bit is set; the `_NullFlags` system field is not
-  included in record maps.
+  included in record maps. Supported `0x32` variable-width text uses the table
+  encoding, while binary values remain binaries.
 
   For example, to read exact numeric values and require valid Windows-1252 text:
 

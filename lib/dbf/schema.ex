@@ -12,13 +12,13 @@ defmodule DBF.Schema do
   alias DBF.ValueDecoder
 
   @enforce_keys [:fields, :record_length, :text_decoder]
-  defstruct [:fields, :record_length, :text_decoder, :null_bitmap]
+  defstruct [:fields, :record_length, :text_decoder, :record_bitmap]
 
   @type t :: %__MODULE__{
           fields: [Field.t()],
           record_length: pos_integer(),
           text_decoder: TextDecoder.t(),
-          null_bitmap: %{record_offset: pos_integer(), length: pos_integer()} | nil
+          record_bitmap: %{record_offset: pos_integer(), length: pos_integer()} | nil
         }
 
   @spec parse(binary(), FormatProfile.t(), Header.t(), DBF.options()) ::
@@ -39,13 +39,13 @@ defmodule DBF.Schema do
              descriptor_offset,
              []
            ),
-         {:ok, fields, null_bitmap} <- compile_fields(fields, profile, header, options) do
+         {:ok, fields, record_bitmap} <- compile_fields(fields, profile, header, options) do
       {:ok,
        %__MODULE__{
          fields: fields,
          record_length: header.record_length,
          text_decoder: text_decoder,
-         null_bitmap: null_bitmap
+         record_bitmap: record_bitmap
        }}
     end
   end
@@ -253,7 +253,7 @@ defmodule DBF.Schema do
   defp validate_field_lengths(fields, %FormatProfile{
          record_layout: layout
        })
-       when layout in [:dbase_legacy, :visual_foxpro_nullable] do
+       when layout in [:dbase_legacy, :visual_foxpro_nullable, :visual_foxpro_variable] do
     case Enum.find(fields, &(&1.length < 1)) do
       nil ->
         :ok
@@ -303,8 +303,13 @@ defmodule DBF.Schema do
 
   defp validate_field_scales(
          fields,
-         %FormatProfile{record_layout: :visual_foxpro_nullable}
+         %FormatProfile{record_layout: layout}
        ) do
+    validate_visual_foxpro_field_scales(fields, layout)
+  end
+
+  defp validate_visual_foxpro_field_scales(fields, layout)
+       when layout in [:visual_foxpro_nullable, :visual_foxpro_variable] do
     case Enum.find(fields, &(&1.type == "Y" and &1.decimal != 4)) do
       nil ->
         :ok
@@ -321,7 +326,20 @@ defmodule DBF.Schema do
     end
   end
 
-  defp validate_field_scales(_fields, _profile), do: :ok
+  defp validate_visual_foxpro_field_scales(_fields, _layout), do: :ok
+
+  defp validate_field_flags(
+         fields,
+         %FormatProfile{record_layout: :visual_foxpro_variable}
+       ) do
+    case Enum.find(fields, &(not valid_variable_field_flags?(&1))) do
+      nil ->
+        :ok
+
+      field ->
+        unsupported_field_flags(field)
+    end
+  end
 
   defp validate_field_flags(
          fields,
@@ -355,8 +373,13 @@ defmodule DBF.Schema do
 
   defp validate_autoincrement(
          fields,
-         %FormatProfile{record_layout: :visual_foxpro_nullable}
+         %FormatProfile{record_layout: layout}
        ) do
+    validate_visual_foxpro_autoincrement(fields, layout)
+  end
+
+  defp validate_visual_foxpro_autoincrement(fields, layout)
+       when layout in [:visual_foxpro_nullable, :visual_foxpro_variable] do
     case Enum.find(fields, &(&1.autoincrement_step == 0)) do
       nil ->
         :ok
@@ -371,7 +394,7 @@ defmodule DBF.Schema do
     end
   end
 
-  defp validate_autoincrement(_fields, _profile), do: :ok
+  defp validate_visual_foxpro_autoincrement(_fields, _layout), do: :ok
 
   defp valid_nullable_field_flags?(%{type: "0", flags: flags}), do: flags == 0x05
 
@@ -383,6 +406,11 @@ defmodule DBF.Schema do
        do: flags in [0x00, 0x02, 0x04, 0x06]
 
   defp valid_nullable_field_flags?(%{flags: flags}), do: flags in [0x00, 0x02]
+
+  defp valid_variable_field_flags?(%{type: "V", flags: flags}),
+    do: flags in [0x00, 0x02, 0x04, 0x06]
+
+  defp valid_variable_field_flags?(field), do: valid_nullable_field_flags?(field)
 
   defp unsupported_field_flags(field) do
     {:error,
@@ -401,29 +429,40 @@ defmodule DBF.Schema do
   defp compile_record_layout(fields, %FormatProfile{
          record_layout: :visual_foxpro_nullable
        }) do
+    compile_record_bitmap(fields, &compile_nullable_field/2)
+  end
+
+  defp compile_record_layout(fields, %FormatProfile{
+         record_layout: :visual_foxpro_variable
+       }) do
+    compile_record_bitmap(fields, &compile_variable_field/2)
+  end
+
+  defp compile_record_bitmap(fields, compile_field) do
     null_fields = Enum.filter(fields, &(&1.type == "0"))
-    nullable_fields = Enum.filter(fields, &(band(&1.flags, 0x02) == 0x02))
+    {compiled_fields, bit_count} = Enum.map_reduce(fields, 0, compile_field)
+    visible_fields = Enum.reject(compiled_fields, &is_nil/1)
 
-    case {null_fields, nullable_fields} do
-      {[], []} ->
-        {:ok, fields, nil}
+    case {null_fields, bit_count} do
+      {[], 0} ->
+        {:ok, visible_fields, nil}
 
-      {[null_field], [_ | _]} ->
-        compile_null_bitmap(fields, null_field, length(nullable_fields))
+      {[null_field], bit_count} when bit_count > 0 ->
+        validate_record_bitmap(visible_fields, null_field, bit_count)
 
-      {[], [_ | _]} ->
+      {[], _bit_count} ->
         {:error, schema_error(:missing_null_bitmap, %{})}
 
-      {[_ | _], []} ->
+      {[_ | _], 0} ->
         {:error, schema_error(:unexpected_null_bitmap, %{})}
 
-      {null_fields, _nullable_fields} ->
+      {null_fields, _bit_count} ->
         {:error, schema_error(:multiple_null_bitmaps, %{count: length(null_fields)})}
     end
   end
 
-  defp compile_null_bitmap(fields, null_field, nullable_count) do
-    expected_length = div(nullable_count + 7, 8)
+  defp validate_record_bitmap(visible_fields, null_field, bit_count) do
+    expected_length = div(bit_count + 7, 8)
 
     cond do
       null_field.name != "_NullFlags" ->
@@ -441,10 +480,7 @@ defmodule DBF.Schema do
          })}
 
       true ->
-        {visible_fields, _next_bit} =
-          Enum.map_reduce(fields, 0, &compile_nullable_field/2)
-
-        {:ok, Enum.reject(visible_fields, &is_nil/1),
+        {:ok, visible_fields,
          %{record_offset: null_field.record_offset, length: null_field.length}}
     end
   end
@@ -456,6 +492,18 @@ defmodule DBF.Schema do
   end
 
   defp compile_nullable_field(field, bit), do: {field, bit}
+
+  defp compile_variable_field(%{type: "V", flags: flags} = field, bit) do
+    field = %Field{field | variable_length_bit: bit}
+
+    if band(flags, 0x02) == 0x02 do
+      {%Field{field | null_bit: bit + 1}, bit + 2}
+    else
+      {field, bit + 1}
+    end
+  end
+
+  defp compile_variable_field(field, bit), do: compile_nullable_field(field, bit)
 
   defp validate_unique_names(names) do
     case Enum.find(names, fn {_name, offsets} -> length(offsets) > 1 end) do

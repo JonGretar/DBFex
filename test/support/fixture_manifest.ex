@@ -135,10 +135,13 @@ defmodule DBF.FixtureManifest do
         encoding: {:ldid, 0x03}
       },
       provenance: @shared_provenance,
-      support: :planned,
-      exercise: {:unsupported_open, 0x32},
+      support: :partial,
+      exercise: {:open, %{records: 1, fields: 1}},
       expected_values: {:schema_sidecar, "test/dbf_files/dbase_32_summary.txt"},
-      normative_sources: [:visual_foxpro]
+      normative_sources: [:visual_foxpro],
+      notes: [
+        "The complete fixture record covers a binary variable-width value and its stored-length bit."
+      ]
     },
     %{
       id: :dbase_iii_memo,

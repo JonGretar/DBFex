@@ -1,6 +1,8 @@
 defmodule DBF.ValueDecoder do
   @moduledoc false
 
+  import Bitwise, only: [band: 2]
+
   alias DBF.Error
   alias DBF.Field
   alias DBF.FormatProfile
@@ -8,12 +10,18 @@ defmodule DBF.ValueDecoder do
   alias DBF.TextDecoder
 
   @spec compile(Field.t(), FormatProfile.t(), DBF.options()) :: Field.decoder()
-  def compile(%Field{type: type}, %FormatProfile{field_kinds: field_kinds}, options) do
+  def compile(%Field{type: type} = field, %FormatProfile{field_kinds: field_kinds}, options) do
     case Map.fetch(field_kinds, type) do
+      {:ok, :variable} -> compile_variable(field)
       {:ok, kind} -> compile_kind(kind, options)
       :error -> {:unsupported, type}
     end
   end
+
+  defp compile_variable(%Field{flags: flags}) when band(flags, 0x04) == 0x04,
+    do: {:binary, :varbinary}
+
+  defp compile_variable(%Field{}), do: {:text, :varchar}
 
   defp compile_kind(:character, _options), do: {:text, :character}
   defp compile_kind(:float, _options), do: {:text, :float}
@@ -40,6 +48,12 @@ defmodule DBF.ValueDecoder do
   def decode(db, %{decoder: {:text, :character}}, value) do
     decode_text(db.text_decoder, value, :both)
   end
+
+  def decode(db, %{decoder: {:text, :varchar}}, value) do
+    decode_text(db.text_decoder, value, :none)
+  end
+
+  def decode(_db, %{decoder: {:binary, :varbinary}}, value), do: value
 
   def decode(_db, %{decoder: {:text, :float}}, value) do
     trimmed = TextDecoder.trim(value, :both)

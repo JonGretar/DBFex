@@ -45,6 +45,13 @@ evidence; never infer complete support from the version byte alone.
 - `_NullFlags` is a physical system field, not caller data. Assign bits to
   nullable fields in descriptor order and consult the bitmap before decoding
   the corresponding field bytes.
+- The `0x32` fixture uses the same system bitmap for variable-width metadata.
+  Allocate one stored-length bit for each `V` field, followed by its null bit
+  when nullable. If the length bit is set, the physical field's final byte is
+  the actual length; if clear, that final byte remains value data.
+- Current Microsoft documentation lists `0x42` for Varchar/Varbinary/Blob tables,
+  while the checked-in independently identified fixture uses `0x32`. Support
+  only the evidenced `0x32` profile rather than aliasing the undocumented byte.
 - Duplicate field names are legal in real files, often after name truncation.
   Never silently overwrite one value when constructing a map.
 

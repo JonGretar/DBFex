@@ -15,7 +15,7 @@ defmodule DBF.Record do
       value_offset = field.record_offset - 1
       raw_value = binary_part(data, value_offset, field.length)
 
-      case read_field_value(db, field, raw_value, data, schema.null_bitmap) do
+      case read_field_value(db, field, raw_value, data, schema.record_bitmap) do
         {:ok, value} -> {:cont, {:ok, Map.put(record, field.name, value)}}
         {:error, %Error{} = error} -> {:halt, {:error, error}}
       end
@@ -32,23 +32,58 @@ defmodule DBF.Record do
      })}
   end
 
-  defp read_field_value(db, field, raw_value, data, null_bitmap) do
-    if null?(field, data, null_bitmap) do
+  defp read_field_value(db, field, raw_value, data, record_bitmap) do
+    if bit_set?(field.null_bit, data, record_bitmap) do
       {:ok, nil}
     else
-      decode_field_value(db, field, raw_value)
+      with {:ok, value} <- resize_variable_value(field, raw_value, data, record_bitmap) do
+        decode_field_value(db, field, value)
+      end
     end
   end
 
-  defp null?(%{null_bit: null_bit}, data, null_bitmap) when is_integer(null_bit) do
-    bitmap_offset = null_bitmap.record_offset - 1
-    bitmap = binary_part(data, bitmap_offset, null_bitmap.length)
-    byte = :binary.at(bitmap, div(null_bit, 8))
+  defp bit_set?(bit, data, record_bitmap) when is_integer(bit) do
+    bitmap_offset = record_bitmap.record_offset - 1
+    bitmap = binary_part(data, bitmap_offset, record_bitmap.length)
+    byte = :binary.at(bitmap, div(bit, 8))
 
-    band(byte, bsl(1, rem(null_bit, 8))) != 0
+    band(byte, bsl(1, rem(bit, 8))) != 0
   end
 
-  defp null?(_field, _data, _null_bitmap), do: false
+  defp bit_set?(_bit, _data, _record_bitmap), do: false
+
+  defp resize_variable_value(
+         %{variable_length_bit: bit, length: field_length} = field,
+         raw_value,
+         data,
+         record_bitmap
+       )
+       when is_integer(bit) do
+    if bit_set?(bit, data, record_bitmap) do
+      value_length = :binary.last(raw_value)
+      maximum = field_length - 1
+
+      if value_length <= maximum do
+        {:ok, binary_part(raw_value, 0, value_length)}
+      else
+        {:error,
+         Error.new(
+           :invalid_record,
+           :invalid_variable_length,
+           Map.merge(field_context(field), %{
+             value_length: value_length,
+             maximum: maximum
+           })
+         )}
+      end
+    else
+      {:ok, raw_value}
+    end
+  end
+
+  defp resize_variable_value(_field, raw_value, _data, _record_bitmap) do
+    {:ok, raw_value}
+  end
 
   defp decode_field_value(db, field, raw_value) do
     case ValueDecoder.decode(db, field, raw_value) do

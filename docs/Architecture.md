@@ -3,9 +3,9 @@
 This document explains how DBFex reads DBF tables, how its modules collaborate,
 and which invariants hold the implementation together. It describes the current
 reader after Phases -1 through 3 and the first partial Phase 4 FoxPro and Visual
-FoxPro slices. Fixed-width `0x31` null metadata is implemented; broader Visual
-FoxPro and variable-width support is called out separately and must not be
-mistaken for implemented behavior.
+FoxPro slices. The evidenced `0x31` null and `0x32` variable-width metadata is
+implemented; broader Visual FoxPro support is called out separately and must
+not be mistaken for implemented behavior.
 
 For byte-level format notes and source references, see [`DBF-Format.md`](DBF-Format.md).
 For the decisions behind this architecture, see [`docs/adr/`](https://github.com/JonGretar/DBFex/tree/main/docs/adr).
@@ -262,15 +262,16 @@ Schema parsing consumes the descriptor region ending at the header boundary. It:
 8. Verifies that `1 + sum(field widths)` equals the declared record length. The
    extra byte is the deletion/status marker.
 9. Assigns each field a sequential `record_offset` beginning at byte `1`.
-10. For nullable Visual FoxPro records, compiles nullable-field bit indexes and
-    the `_NullFlags` location while removing that system field from the visible
-    schema.
+10. For Visual FoxPro record metadata, compiles variable-length and nullable
+    bit indexes plus the `_NullFlags` location while removing that system field
+    from the visible schema.
 11. Compiles a decoder tag for each visible field through
     `DBF.ValueDecoder.compile/3`.
 
-The result is `%DBF.Schema{fields, record_length, text_decoder, null_bitmap}`.
+The result is `%DBF.Schema{fields, record_length, text_decoder, record_bitmap}`.
 Each `%DBF.Field{}` preserves descriptor metadata and raw descriptor bytes while
-also carrying its compiled offset, null bit when applicable, and decoder.
+also carrying its compiled offset, record-metadata bits when applicable, and
+decoder.
 Autoincrement fields retain their next value and step rather than classifying
 those descriptor bytes as reserved.
 
@@ -288,9 +289,10 @@ A successful open returns `%DBF.Database{}`. Its current fields combine:
 - **Compiled schema:** schema, fields, text decoder.
 
 Some values are currently duplicated from parsed header and schema structures.
-That representation is explicitly internal and may be simplified when Phase 4
-provides concrete null and variable-width metadata requirements. Callers must
-not use struct fields as a metadata API.
+The compiled record bitmap nevertheless has one owner in `DBF.Schema`.
+Removing observable projections such as `fields` is deferred until a stable
+public metadata interface can replace them coherently. Callers must not use
+struct fields as a metadata API.
 
 No records or memo payloads are stored in the database value. Both are read
 lazily.
@@ -353,7 +355,10 @@ flowchart TD
     Fields --> Slice[Slice bytes at compiled offset]
     Slice --> Null{Nullable bit set}
     Null -->|yes| NullValue[nil]
-    Null -->|no| Decode[DBF.ValueDecoder.decode]
+    Null -->|no| Length{Stored-length bit set}
+    Length -->|yes| Resize[Validate and apply final-byte length]
+    Length -->|no| Decode[DBF.ValueDecoder.decode]
+    Resize --> Decode
     Decode --> Text[DBF.TextDecoder]
     Decode --> Memo[DBF.Memo.get_block]
     Decode --> Result[Add value to record map]
@@ -364,8 +369,9 @@ flowchart TD
 `DBF.Record` decodes a bounded record body and does not perform the positional
 table read itself. It validates body width, walks fields in declaration order,
 slices each fixed-width binary using compiled offsets, applies any compiled null
-bit before value decoding, and stops at the first error. Memo fields may still
-trigger lazy memo reads through `DBF.ValueDecoder`.
+bit, then any stored variable length, before value decoding, and stops at the
+first error. Memo fields may still trigger lazy memo reads through
+`DBF.ValueDecoder`.
 `DBF.Record` adds field name, type, and offset context; `DBF.RecordReader` adds
 record number, table offset, and version context. `DBF.get/2` only translates
 the resulting internal error into the public error type.
@@ -395,13 +401,16 @@ option into a decoder tag stored on the field. `decode/3` dispatches on that tag
 | Visual FoxPro currency         | Decode a signed little-endian 64-bit integer with fixed scale four as exact `Decimal`                    |
 | Visual FoxPro timestamp        | Decode little-endian Julian day and milliseconds into `NaiveDateTime`; all-zero is `nil`                 |
 | Visual FoxPro text memo        | Decode a little-endian 32-bit FPT pointer, then read and text-decode its declared payload                |
+| Visual FoxPro Varchar          | Apply the stored byte length, then decode text without fixed-width trimming                              |
+| Visual FoxPro binary `V`       | Apply the stored byte length and return the resulting binary unchanged                                  |
 | Unsupported                    | Return `:unsupported_field_type` when the record is read                                                 |
 
 For legacy profiles, `nil` represents a format-specific blank value, not an
-explicit database null. The Visual FoxPro `0x31` profile also returns `nil` for
-an explicit bitmap null, but applies that metadata before decoding physical
-field bytes. See [ADR 0004](https://github.com/JonGretar/DBFex/blob/main/docs/adr/0004-preserve-compatible-legacy-value-defaults.md)
-and [ADR 0006](https://github.com/JonGretar/DBFex/blob/main/docs/adr/0006-use-exact-currency-and-profile-aware-nulls.md).
+explicit database null. Visual FoxPro `0x31` and `0x32` also return `nil` for an
+explicit bitmap null, but apply that metadata before stored lengths and physical
+field decoding. See [ADR 0004](https://github.com/JonGretar/DBFex/blob/main/docs/adr/0004-preserve-compatible-legacy-value-defaults.md),
+[ADR 0006](https://github.com/JonGretar/DBFex/blob/main/docs/adr/0006-use-exact-currency-and-profile-aware-nulls.md),
+and [ADR 0007](https://github.com/JonGretar/DBFex/blob/main/docs/adr/0007-compile-variable-field-bits-into-schema.md).
 
 ## Text decoding
 
@@ -605,9 +614,10 @@ supersedes them:
 11. Memo family comes from the profile, not the filename extension.
 12. Text conversion applies only to values classified as textual.
 13. Legacy blank `nil` values do not claim explicit database null semantics.
-14. Explicit null bits are applied before decoding physical field bytes.
-15. Internal errors become public errors only at the `DBF` seam.
-16. An open database is opaque and owns live resources until closed.
+14. Explicit null bits are applied before stored lengths or physical field bytes.
+15. Stored variable lengths cannot exceed their physical value area.
+16. Internal errors become public errors only at the `DBF` seam.
+17. An open database is opaque and owns live resources until closed.
 
 ## Adding support without spreading format knowledge
 
@@ -636,17 +646,17 @@ variation, not only by the possibility of a future implementation.
 
 The following are roadmap items, not current architecture:
 
-- Visual FoxPro `0x32` and broader FoxPro field capabilities;
+- broader Visual FoxPro field capabilities;
 - binary FPT memo blocks;
 - binary Picture/General values;
-- variable-width `Varchar`, `Varbinary`, and `Blob` values;
-- per-record variable-width length metadata;
+- `Q` Varbinary and variable-width Blob values;
 - dBASE Level 5/7 and 48-byte Level 7 descriptors;
 - a generic source behavior for binary or IO-backed input;
 - writer/editor support;
 - NDX, MDX, CDX, and other index readers;
 - a stable public metadata API.
 
-The remaining duplicated database projections will be reassessed with `0x32`
-variable-width requirements. The physical record-reader and cohesive
-field-descriptor layout modules are now implemented architecture.
+The remaining duplicated database projections are deferred until a stable
+public metadata interface can replace their observable fields without needless
+source-compatibility churn. The record bitmap, physical record-reader, and
+cohesive field-descriptor layout modules are implemented architecture.

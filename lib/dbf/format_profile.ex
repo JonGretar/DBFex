@@ -28,7 +28,8 @@ defmodule DBF.FormatProfile do
   @type field_descriptor_layout :: DBF.FieldDescriptorLayout.t()
   @type memo_family :: :none | :dbt_iii | :dbt_iv | :fpt
   @type memo_requirement :: :none | :required | :table_flag
-  @type record_layout :: :dbase_legacy | :visual_foxpro_nullable
+  @type record_layout ::
+          :dbase_legacy | :visual_foxpro_nullable | :visual_foxpro_variable
   @type field_kind ::
           :character
           | :numeric
@@ -39,6 +40,7 @@ defmodule DBF.FormatProfile do
           | :text_memo
           | :integer
           | :currency
+          | :variable
           | :datetime
           | :text_memo_binary_pointer
 
@@ -72,6 +74,11 @@ defmodule DBF.FormatProfile do
                                              "Y",
                                              :currency
                                            )
+  @visual_foxpro_variable_field_kinds Map.put(
+                                        @visual_foxpro_autoincrement_field_kinds,
+                                        "V",
+                                        :variable
+                                      )
 
   @profiles %{
     0x02 => %{
@@ -113,6 +120,16 @@ defmodule DBF.FormatProfile do
       memo_requirement: :table_flag,
       record_layout: :visual_foxpro_nullable,
       field_kinds: @visual_foxpro_autoincrement_field_kinds
+    },
+    0x32 => %{
+      version: 0x32,
+      label: "Visual FoxPro with variable-width fields",
+      header_layout: :visual_foxpro_32,
+      field_descriptor_layout: :visual_foxpro_32,
+      memo_family: :fpt,
+      memo_requirement: :table_flag,
+      record_layout: :visual_foxpro_variable,
+      field_kinds: @visual_foxpro_variable_field_kinds
     },
     0x83 => %{
       version: 0x83,

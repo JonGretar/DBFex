@@ -17,6 +17,7 @@ defmodule DBF.Field do
     :descriptor_offset,
     :record_offset,
     :null_bit,
+    :variable_length_bit,
     :decoder,
     :raw_descriptor,
     :reserved
@@ -27,9 +28,10 @@ defmodule DBF.Field do
           | :float
           | :logical
           | {:numeric, DBF.numeric_policy() | :exact_unscaled}
+          | :varchar
           | :memo
           | :date
-  @type binary_decoder :: :integer | :currency | :datetime | :text_memo
+  @type binary_decoder :: :integer | :currency | :datetime | :text_memo | :varbinary
   @type decoder ::
           {:text, text_decoder()} | {:binary, binary_decoder()} | {:unsupported, binary()}
 
@@ -47,6 +49,7 @@ defmodule DBF.Field do
           descriptor_offset: non_neg_integer(),
           record_offset: pos_integer(),
           null_bit: non_neg_integer() | nil,
+          variable_length_bit: non_neg_integer() | nil,
           decoder: decoder(),
           raw_descriptor: binary(),
           reserved: binary()

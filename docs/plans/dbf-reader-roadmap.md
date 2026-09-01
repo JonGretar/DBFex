@@ -386,10 +386,12 @@ Next target `0x31` and `0x32`, for which fixtures also already exist.
 
 - [x] Parse the evidenced `0x31` field flags and autoincrement
       next-value/step metadata.
-- [ ] Decode `Varchar`, `Varbinary`, and `Blob` according to the VFP descriptor
-      and per-record length/null metadata.
-- [x] Implement the fixed-width `0x31` null bitmap and distinguish null from
-      blank during decoding. Keep `0x32` length/null metadata separate.
+- [x] Decode the evidenced textual and binary `V` fields according to descriptor
+      flags and per-record length/null metadata.
+- [ ] Add `Q` Varbinary and Blob only when fixtures establish their inline or
+      memo-backed value semantics.
+- [x] Implement the shared `0x31`/`0x32` record bitmap and distinguish null from
+      blank before applying stored lengths or value decoding.
 
 #### 4.3 dBASE Level 5 and Level 7
 

@@ -171,17 +171,17 @@ memo, options, profile) in `%DBF.Database{}`. ADR 0001 permits changing database
 fields, but tests that intentionally inspect the opaque value must be updated
 together and downstream source compatibility should still be considered.
 
-**Status:** Reassessed with fixed-width `0x31`. `DBF.Schema` now solely owns the
-compiled null bitmap, so no second compiled-record struct is needed. Removing
-the observable `fields` projection while adding autoincrement metadata would
-create needless source-compatibility churn; defer the remaining projection
-cleanup until `0x32` provides the variable-width requirements and a public
-metadata interface can be considered coherently.
+**Status:** Reassessed with fixed-width `0x31` and variable-width `0x32`.
+`DBF.Schema` solely owns the compiled record bitmap, so no second
+compiled-record struct is needed and no raw-version dispatch leaks into record
+reading. Removing observable projections such as `fields` would create needless
+source-compatibility churn. Defer that cleanup until a stable public metadata
+interface is designed as its own change.
 
 - [ ] F.1 Inventory every duplicated `Database` projection and its internal/test callers
 - [ ] F.2 Retain parsed `header` and `schema` values instead of copying their fields into `Database`
 - [ ] F.3 Update `DBF`, `Enumerable`, record/memo readers, and tests to use the owning structures
-- [ ] F.4 Verify that Phase 4 null and variable-width metadata has one owner and no raw-version dispatch leaks into record reading
+- [x] F.4 Verify that Phase 4 null and variable-width metadata has one owner and no raw-version dispatch leaks into record reading
 - [ ] F.5 Decide whether the observable-but-unstable struct change merits an `[Unreleased]` changelog note
 - [ ] F.6 Run `mix test`
 - [ ] F.7 Run `mix precommit`
