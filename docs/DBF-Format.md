@@ -38,6 +38,13 @@ evidence; never infer complete support from the version byte alone.
 - Blank, null, invalid, deleted, and unsupported are different states. Visual
   FoxPro nullable fields require per-record null metadata; blank bytes are not
   sufficient.
+- Visual FoxPro `0x31` descriptors use flag `0x08` for autoincrement fields;
+  bytes 19–22 hold the next little-endian value and byte 23 holds the step.
+- Visual FoxPro Currency (`Y`) is a signed little-endian 64-bit integer with an
+  implicit scale of 10,000. Decode it exactly rather than through a float.
+- `_NullFlags` is a physical system field, not caller data. Assign bits to
+  nullable fields in descriptor order and consult the bitmap before decoding
+  the corresponding field bytes.
 - Duplicate field names are legal in real files, often after name truncation.
   Never silently overwrite one value when constructing a map.
 

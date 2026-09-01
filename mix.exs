@@ -97,6 +97,7 @@ defmodule DBF.MixProject do
         DBF.Memo.FPT
         DBF.Opening
         DBF.Record
+        DBF.RecordReader
         DBF.Resource
         DBF.Schema
         DBF.TextDecoder

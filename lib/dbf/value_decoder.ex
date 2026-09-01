@@ -21,6 +21,7 @@ defmodule DBF.ValueDecoder do
   defp compile_kind(:date, _options), do: {:text, :date}
   defp compile_kind(:text_memo, _options), do: {:text, :memo}
   defp compile_kind(:integer, _options), do: {:binary, :integer}
+  defp compile_kind(:currency, _options), do: {:binary, :currency}
   defp compile_kind(:datetime, _options), do: {:binary, :datetime}
   defp compile_kind(:text_memo_binary_pointer, _options), do: {:binary, :text_memo}
 
@@ -134,6 +135,14 @@ defmodule DBF.ValueDecoder do
         <<integer::little-signed-integer-size(32)>>
       ) do
     integer
+  end
+
+  def decode(
+        _db,
+        %{decoder: {:binary, :currency}},
+        <<integer::little-signed-integer-size(64)>>
+      ) do
+    Decimal.new("#{integer}E-4")
   end
 
   def decode(_db, %{decoder: {:binary, :datetime}}, <<0::size(64)>>), do: nil

@@ -114,10 +114,13 @@ defmodule DBF.FixtureManifest do
         encoding: {:ldid, 0x03}
       },
       provenance: @shared_provenance,
-      support: :planned,
-      exercise: {:unsupported_open, 0x31},
+      support: :partial,
+      exercise: {:open, %{records: 77, fields: 10}},
       expected_values: {:schema_sidecar, "test/dbf_files/dbase_31_summary.txt"},
-      normative_sources: [:visual_foxpro]
+      normative_sources: [:visual_foxpro],
+      notes: [
+        "All records are enumerated; representative values cover autoincrement metadata, exact currency, and nullable fields."
+      ]
     },
     %{
       id: :visual_foxpro_varchar,

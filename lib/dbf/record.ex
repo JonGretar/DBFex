@@ -1,6 +1,8 @@
 defmodule DBF.Record do
   @moduledoc false
 
+  import Bitwise, only: [band: 2, bsl: 2]
+
   alias DBF.DatabaseError
   alias DBF.Error
   alias DBF.ValueDecoder
@@ -13,7 +15,7 @@ defmodule DBF.Record do
       value_offset = field.record_offset - 1
       raw_value = binary_part(data, value_offset, field.length)
 
-      case read_field_value(db, field, raw_value) do
+      case read_field_value(db, field, raw_value, data, schema.null_bitmap) do
         {:ok, value} -> {:cont, {:ok, Map.put(record, field.name, value)}}
         {:error, %Error{} = error} -> {:halt, {:error, error}}
       end
@@ -30,7 +32,25 @@ defmodule DBF.Record do
      })}
   end
 
-  defp read_field_value(db, field, raw_value) do
+  defp read_field_value(db, field, raw_value, data, null_bitmap) do
+    if null?(field, data, null_bitmap) do
+      {:ok, nil}
+    else
+      decode_field_value(db, field, raw_value)
+    end
+  end
+
+  defp null?(%{null_bit: null_bit}, data, null_bitmap) when is_integer(null_bit) do
+    bitmap_offset = null_bitmap.record_offset - 1
+    bitmap = binary_part(data, bitmap_offset, null_bitmap.length)
+    byte = :binary.at(bitmap, div(null_bit, 8))
+
+    band(byte, bsl(1, rem(null_bit, 8))) != 0
+  end
+
+  defp null?(_field, _data, _null_bitmap), do: false
+
+  defp decode_field_value(db, field, raw_value) do
     case ValueDecoder.decode(db, field, raw_value) do
       {:error, %Error{} = error} ->
         {:error, Error.add_context(error, field_context(field))}

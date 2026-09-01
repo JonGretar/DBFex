@@ -114,6 +114,11 @@ end)
 
 Malformed and blank numeric fields remain `nil` under this policy.
 
+Visual FoxPro Currency (`Y`) has a format-defined scale of four and always
+decodes to an exact `Decimal`, including under the default numeric policy.
+Explicitly null `0x31` fields return `nil`; the physical `_NullFlags` system
+field is not included in record maps.
+
 ### Text encoding
 
 Known Windows-1251 and Windows-1252 language drivers are decoded to UTF-8.
@@ -166,7 +171,8 @@ checked-in fixtures. A recognized version byte alone does not imply support.
 | dBASE IV with DBT memo              | `0x8B`                         | Verified    | Representative schema and values, text policies, declared block sizing, multi-block memos, and companion validation are covered.                                |
 | FoxPro 2.x with FPT                 | `0xF5`                         | Partial     | Fixed-width `C`/`N`/`D` fields and textual `M` values are covered; binary fields and memo blocks remain unsupported.                                            |
 | Visual FoxPro tables/FPT            | `0x30`                         | Partial     | Fixed-width legacy, integer, timestamp, and textual FPT memo values are covered; nullable, currency, binary, and database-container values remain unsupported.   |
-| Visual FoxPro autoincrement/variable | `0x31`, `0x32`                 | Planned     | Fixtures cover autoincrement metadata, variable-width fields, and null flags.                                                                                   |
+| Visual FoxPro autoincrement          | `0x31`                         | Partial     | Autoincrement metadata, exact currency, nullable fields, and complete fixture enumeration are covered; broader binary field kinds remain unsupported.            |
+| Visual FoxPro variable-width         | `0x32`                         | Planned     | The fixture covers variable-width fields and per-record length metadata.                                                                                        |
 | dBASE Level 7-style tables          | `0x8C` fixture                 | Planned     | Extended header/descriptor and memo support are not implemented.                                                                                                |
 | DBF writing                         | —                              | Not planned | Read-only scope.                                                                                                                                                |
 | NDX/MDX/CDX/DCX index reading       | —                              | Not planned | Tracked separately from table reading.                                                                                                                          |

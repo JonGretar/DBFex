@@ -3,7 +3,7 @@ defmodule DBF do
   alias DBF.DatabaseError
   alias DBF.Error
   alias DBF.Opening
-  alias DBF.Record
+  alias DBF.RecordReader
   alias DBF.Resource
 
   @type numeric_policy() :: :float | :exact
@@ -38,7 +38,7 @@ defmodule DBF do
   @type with_open_result(result) :: result | error_result()
 
   @moduledoc """
-  Read FoxBase and dBASE DBF files.
+  Read FoxBase, dBASE, FoxPro, and Visual FoxPro DBF files.
 
   DBFex provides read-only, positional access to records. For ordinary reads,
   prefer `with_open/2` or `with_open/3`; it owns the database resource for the
@@ -76,6 +76,11 @@ defmodule DBF do
   * `:encoding` - `:auto`, `:raw`, `:windows_1251`, or `:windows_1252`. Defaults
     to `:auto`.
   * `:encoding_errors` - `:strict`, `:replace`, or `:raw`. Defaults to `:raw`.
+
+  Visual FoxPro Currency (`Y`) values always decode to exact `Decimal` values,
+  independently of the `:numeric` option. Nullable `0x31` fields return `nil`
+  when their record bitmap bit is set; the `_NullFlags` system field is not
+  included in record maps.
 
   For example, to read exact numeric values and require valid Windows-1252 text:
 
@@ -239,42 +244,10 @@ defmodule DBF do
   ```
   """
   @spec get(Database.t(), term()) :: record_result()
-  def get(%Database{number_of_records: total}, record_number)
-      when not is_integer(record_number) or record_number < 0 or record_number >= total do
-    Error.new(:invalid_record_index, :out_of_bounds, %{
-      record_number: record_number,
-      record_count: total
-    })
-    |> public_error()
-  end
-
-  def get(
-        %Database{resource: resource, record_bytes: record_bytes, header_bytes: header_bytes} =
-          db,
-        record_number
-      ) do
-    offset = header_bytes + record_number * record_bytes
-
-    case Resource.read_exact(resource, :table, offset, record_bytes) do
-      {:ok, <<" ", data::binary>>} ->
-        decode_record(db, :record, data, record_number, offset)
-
-      {:ok, <<"*", data::binary>>} ->
-        decode_record(db, :deleted_record, data, record_number, offset)
-
-      {:ok, <<marker, _data::binary>>} ->
-        Error.new(:invalid_record, {:unknown_record_marker, marker}, %{
-          record_number: record_number,
-          offset: offset,
-          version: db.version
-        })
-        |> public_error()
-
-      {:error, %Error{} = error} ->
-        error
-        |> record_read_error()
-        |> Error.add_context(%{record_number: record_number, offset: offset, version: db.version})
-        |> public_error()
+  def get(%Database{} = db, record_number) do
+    case RecordReader.fetch(db, record_number) do
+      {:error, %Error{} = error} -> public_error(error)
+      record -> record
     end
   end
 
@@ -286,25 +259,6 @@ defmodule DBF do
   @doc false
   @spec options(Database.t(), atom()) :: term()
   def options(%Database{options: options}, key), do: Keyword.get(options, key)
-
-  defp decode_record(db, status, data, record_number, offset) do
-    case Record.parse_record(db, data) do
-      {:ok, record} ->
-        {status, record}
-
-      {:error, %Error{} = error} ->
-        error
-        |> Error.add_context(%{
-          record_number: record_number,
-          offset: offset,
-          version: db.version
-        })
-        |> public_error()
-    end
-  end
-
-  defp record_read_error(%Error{cause: :eof} = error), do: %Error{error | reason: :invalid_record}
-  defp record_read_error(%Error{} = error), do: error
 
   defp invoke_and_close(db, fun) do
     result = fun.(db)

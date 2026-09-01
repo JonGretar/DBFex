@@ -3,8 +3,9 @@
 This document explains how DBFex reads DBF tables, how its modules collaborate,
 and which invariants hold the implementation together. It describes the current
 reader after Phases -1 through 3 and the first partial Phase 4 FoxPro and Visual
-FoxPro slices. Broader Visual FoxPro, variable-width, and explicit-null support
-is called out separately and must not be mistaken for implemented behavior.
+FoxPro slices. Fixed-width `0x31` null metadata is implemented; broader Visual
+FoxPro and variable-width support is called out separately and must not be
+mistaken for implemented behavior.
 
 For byte-level format notes and source references, see [`DBF-Format.md`](DBF-Format.md).
 For the decisions behind this architecture, see [`docs/adr/`](https://github.com/JonGretar/DBFex/tree/main/docs/adr).
@@ -18,8 +19,8 @@ DBFex is a read-only, lazy, positional table reader:
    text decoders, and validates any required memo companion.
 2. **The returned database is an opaque live handle.** It contains compiled
    metadata and a process-backed resource owner, not loaded record data.
-3. **Records are read on demand.** `DBF.get/2` and `Enumerable` calculate a byte
-   offset and perform an exact positional read for one physical record.
+3. **Records are read on demand.** `DBF.get/2` and `Enumerable` delegate to the
+   physical record reader for an exact positional read of one record.
 4. **Compiled metadata drives decoding.** Record reads use field offsets and
    decoder tags selected during opening rather than rediscovering format rules.
 5. **The public seam is narrow.** Internal modules return `%DBF.Error{}`; `DBF`
@@ -39,7 +40,7 @@ flowchart TD
 
     Facade --> Opening[DBF.Opening]
     Facade --> Resource[DBF.Resource]
-    Facade --> Record[DBF.Record]
+    Facade --> Reader[DBF.RecordReader]
     Opening --> Database[DBF.Database]
 
     Opening --> Resource
@@ -54,6 +55,8 @@ flowchart TD
     Schema --> Values[DBF.ValueDecoder]
     Schema --> Layout
 
+    Reader --> Resource
+    Reader --> Record[DBF.Record]
     Record --> Values
     Values --> Text
     Values --> Memo
@@ -64,6 +67,7 @@ flowchart TD
     DBT4 --> Resource
 
     Opening --> InternalError[DBF.Error]
+    Reader --> InternalError
     Record --> InternalError
     Resource --> InternalError
     Memo --> InternalError
@@ -74,6 +78,7 @@ The important split is between **orchestration**, **bounded parsing/decoding**,
 and **resource ownership**:
 
 - `DBF.Opening` orchestrates a transactional open.
+- `DBF.RecordReader` owns physical record access and record-level context.
 - `DBF.Header`, `DBF.Schema`, `DBF.Record`, `DBF.ValueDecoder`, and
   `DBF.TextDecoder` interpret bounded bytes.
 - `DBF.Resource` alone owns file devices and performs positional reads.
@@ -252,15 +257,22 @@ Schema parsing consumes the descriptor region ending at the header boundary. It:
 4. Validates the 263-byte Visual FoxPro backlink area when applicable.
 5. Decodes field names before duplicate-name validation.
 6. Rejects duplicate caller-visible field names.
-7. Rejects zero-width fields and unsupported Visual FoxPro field flags.
+7. Rejects zero-width fields and unsupported Visual FoxPro field flags or
+   autoincrement metadata.
 8. Verifies that `1 + sum(field widths)` equals the declared record length. The
    extra byte is the deletion/status marker.
 9. Assigns each field a sequential `record_offset` beginning at byte `1`.
-10. Compiles a decoder tag for each field through `DBF.ValueDecoder.compile/3`.
+10. For nullable Visual FoxPro records, compiles nullable-field bit indexes and
+    the `_NullFlags` location while removing that system field from the visible
+    schema.
+11. Compiles a decoder tag for each visible field through
+    `DBF.ValueDecoder.compile/3`.
 
-The result is `%DBF.Schema{fields, record_length, text_decoder}`. Each
-`%DBF.Field{}` preserves descriptor metadata and raw descriptor bytes while also
-carrying its compiled offset and decoder.
+The result is `%DBF.Schema{fields, record_length, text_decoder, null_bitmap}`.
+Each `%DBF.Field{}` preserves descriptor metadata and raw descriptor bytes while
+also carrying its compiled offset, null bit when applicable, and decoder.
+Autoincrement fields retain their next value and step rather than classifying
+those descriptor bytes as reserved.
 
 This makes opening the structural validation and compilation point. Record reads
 consume compiled metadata and do not reinterpret descriptors.
@@ -296,8 +308,8 @@ For a valid index, the table offset is:
 header_bytes + record_number * record_bytes
 ```
 
-DBFex requests exactly `record_bytes` from `DBF.Resource` and interprets the
-first byte:
+`DBF.RecordReader.fetch/2` requests exactly `record_bytes` from `DBF.Resource`
+and interprets the first byte:
 
 - space (`0x20`) produces `{:record, map}`;
 - `*` (`0x2A`) produces `{:deleted_record, map}`;
@@ -339,19 +351,24 @@ flowchart TD
     Deleted --> Parse
     Parse --> Fields[Walk compiled fields]
     Fields --> Slice[Slice bytes at compiled offset]
-    Slice --> Decode[DBF.ValueDecoder.decode]
+    Slice --> Null{Nullable bit set}
+    Null -->|yes| NullValue[nil]
+    Null -->|no| Decode[DBF.ValueDecoder.decode]
     Decode --> Text[DBF.TextDecoder]
     Decode --> Memo[DBF.Memo.get_block]
     Decode --> Result[Add value to record map]
+    NullValue --> Result
     Result --> Fields
 ```
 
 `DBF.Record` decodes a bounded record body and does not perform the positional
 table read itself. It validates body width, walks fields in declaration order,
-slices each fixed-width binary using compiled offsets, and stops at the first
-error. Memo fields may still trigger lazy memo reads through `DBF.ValueDecoder`.
-`DBF.Record` adds field name, type, and offset context; `DBF.get/2` adds record
-number, table offset, and version context.
+slices each fixed-width binary using compiled offsets, applies any compiled null
+bit before value decoding, and stops at the first error. Memo fields may still
+trigger lazy memo reads through `DBF.ValueDecoder`.
+`DBF.Record` adds field name, type, and offset context; `DBF.RecordReader` adds
+record number, table offset, and version context. `DBF.get/2` only translates
+the resulting internal error into the public error type.
 
 `DBF.Record` also provides a defensive seam around decoder defects. A raised
 `DBF.DatabaseError`, another exception, a throw, or an exit is converted into an
@@ -375,13 +392,16 @@ option into a decoder tag stored on the field. `decode/3` dispatches on that tag
 | Date                           | Eight spaces is `nil`; otherwise parse `YYYYMMDD` into `Date` or return an error                         |
 | Text memo                      | Parse a decimal block pointer, read memo bytes lazily, then apply the table text decoder; blank is `nil` |
 | Visual FoxPro integer          | Decode a signed little-endian 32-bit integer                                                            |
+| Visual FoxPro currency         | Decode a signed little-endian 64-bit integer with fixed scale four as exact `Decimal`                    |
 | Visual FoxPro timestamp        | Decode little-endian Julian day and milliseconds into `NaiveDateTime`; all-zero is `nil`                 |
 | Visual FoxPro text memo        | Decode a little-endian 32-bit FPT pointer, then read and text-decode its declared payload                |
 | Unsupported                    | Return `:unsupported_field_type` when the record is read                                                 |
 
-For current legacy profiles, `nil` represents a format-specific blank value, not
-an explicit database null. Explicit null metadata is a separate planned Visual
-FoxPro record capability. See [ADR 0004](https://github.com/JonGretar/DBFex/blob/main/docs/adr/0004-preserve-compatible-legacy-value-defaults.md).
+For legacy profiles, `nil` represents a format-specific blank value, not an
+explicit database null. The Visual FoxPro `0x31` profile also returns `nil` for
+an explicit bitmap null, but applies that metadata before decoding physical
+field bytes. See [ADR 0004](https://github.com/JonGretar/DBFex/blob/main/docs/adr/0004-preserve-compatible-legacy-value-defaults.md)
+and [ADR 0006](https://github.com/JonGretar/DBFex/blob/main/docs/adr/0006-use-exact-currency-and-profile-aware-nulls.md).
 
 ## Text decoding
 
@@ -550,12 +570,13 @@ failure actionable without forcing every internal detail into the stable API.
 | `DBF.Opening`                   | Complete transactional opening operation behind `open/2`                                              | `DBF.open/2`                                                                       |
 | `DBF.Database`                  | Opaque live database state and compiled metadata                                                      | Constructed by opening; consumed by `DBF`, record/value decoding, and `Enumerable` |
 | `Enumerable` for `DBF.Database` | Physical-order enumeration using `DBF.get/2`                                                          | `Enum` and stream consumers                                                        |
-| `DBF.Resource`                  | Process-backed owner of table and memo devices; positional exact reads and cleanup                    | Opening, `DBF`, DBT implementations                                                |
+| `DBF.Resource`                  | Process-backed owner of table and memo devices; positional exact reads and cleanup                    | Opening, record reader, DBT implementations                                        |
+| `DBF.RecordReader`              | Physical index validation, exact record reads, status markers, and record-level error context         | `DBF.get/2`                                                                        |
 | `DBF.FormatProfile`             | One selection point for layout, memo, record, and field capabilities                                  | Opening, header/schema/value compilation                                           |
 | `DBF.Header`                    | Profile-aware table-header parsing and structural bounds validation                                   | Opening and schema compilation                                                     |
 | `DBF.Schema`                    | Descriptor parsing, field-name decoding, schema validation, offsets, and decoder compilation          | Opening and record decoding                                                        |
 | `DBF.Field`                     | Metadata, raw descriptor evidence, compiled offset, and decoder for one field                         | Schema, record, and value decoder                                                  |
-| `DBF.Record`                    | Bounded fixed-width record-body decoder with field-level error context                                | `DBF.get/2`                                                                        |
+| `DBF.Record`                    | Bounded fixed-width record-body decoder with field-level error context                                | `DBF.RecordReader`                                                                 |
 | `DBF.ValueDecoder`              | Compile and execute profile-approved value decoders                                                   | Schema at open time; record at read time                                           |
 | `DBF.TextDecoder`               | Compile and execute language-driver-aware byte-to-text policy                                         | Schema, value decoder, DBT IV trimming support                                     |
 | `DBF.Memo`                      | Memo-family facade and initialized memo metadata                                                      | Opening and value decoder                                                          |
@@ -584,8 +605,9 @@ supersedes them:
 11. Memo family comes from the profile, not the filename extension.
 12. Text conversion applies only to values classified as textual.
 13. Legacy blank `nil` values do not claim explicit database null semantics.
-14. Internal errors become public errors only at the `DBF` seam.
-15. An open database is opaque and owns live resources until closed.
+14. Explicit null bits are applied before decoding physical field bytes.
+15. Internal errors become public errors only at the `DBF` seam.
+16. An open database is opaque and owns live resources until closed.
 
 ## Adding support without spreading format knowledge
 
@@ -614,20 +636,17 @@ variation, not only by the possibility of a future implementation.
 
 The following are roadmap items, not current architecture:
 
-- Visual FoxPro `0x31`/`0x32` profiles and broader FoxPro field capabilities;
+- Visual FoxPro `0x32` and broader FoxPro field capabilities;
 - binary FPT memo blocks;
-- little-endian integer/currency and timestamp fields;
 - binary Picture/General values;
-- VFP nullable/autoincrement field flags and autoincrement metadata;
 - variable-width `Varchar`, `Varbinary`, and `Blob` values;
-- per-record length metadata and explicit null bitmaps;
+- per-record variable-width length metadata;
 - dBASE Level 5/7 and 48-byte Level 7 descriptors;
 - a generic source behavior for binary or IO-backed input;
 - writer/editor support;
 - NDX, MDX, CDX, and other index readers;
 - a stable public metadata API.
 
-Database representation, a possible physical record-reader module, and cohesive
-field-descriptor layout ownership are intentionally being reassessed alongside
-Phase 4 requirements. This document should be updated when those changes become
-implemented architecture.
+The remaining duplicated database projections will be reassessed with `0x32`
+variable-width requirements. The physical record-reader and cohesive
+field-descriptor layout modules are now implemented architecture.

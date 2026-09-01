@@ -10,10 +10,13 @@ defmodule DBF.Field do
     :decimal,
     :address,
     :flags,
+    :autoincrement_next,
+    :autoincrement_step,
     :work_area,
     :set_fields_flag,
     :descriptor_offset,
     :record_offset,
+    :null_bit,
     :decoder,
     :raw_descriptor,
     :reserved
@@ -26,7 +29,7 @@ defmodule DBF.Field do
           | {:numeric, DBF.numeric_policy() | :exact_unscaled}
           | :memo
           | :date
-  @type binary_decoder :: :integer | :datetime | :text_memo
+  @type binary_decoder :: :integer | :currency | :datetime | :text_memo
   @type decoder ::
           {:text, text_decoder()} | {:binary, binary_decoder()} | {:unsupported, binary()}
 
@@ -37,10 +40,13 @@ defmodule DBF.Field do
           decimal: non_neg_integer() | nil,
           address: non_neg_integer() | nil,
           flags: byte() | nil,
+          autoincrement_next: non_neg_integer() | nil,
+          autoincrement_step: byte() | nil,
           work_area: byte() | nil,
           set_fields_flag: byte() | nil,
           descriptor_offset: non_neg_integer(),
           record_offset: pos_integer(),
+          null_bit: non_neg_integer() | nil,
           decoder: decoder(),
           raw_descriptor: binary(),
           reserved: binary()

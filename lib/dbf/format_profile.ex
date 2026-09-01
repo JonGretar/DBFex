@@ -28,7 +28,7 @@ defmodule DBF.FormatProfile do
   @type field_descriptor_layout :: DBF.FieldDescriptorLayout.t()
   @type memo_family :: :none | :dbt_iii | :dbt_iv | :fpt
   @type memo_requirement :: :none | :required | :table_flag
-  @type record_layout :: :dbase_legacy
+  @type record_layout :: :dbase_legacy | :visual_foxpro_nullable
   @type field_kind ::
           :character
           | :numeric
@@ -38,6 +38,7 @@ defmodule DBF.FormatProfile do
           | :date
           | :text_memo
           | :integer
+          | :currency
           | :datetime
           | :text_memo_binary_pointer
 
@@ -66,6 +67,11 @@ defmodule DBF.FormatProfile do
                                "M" => :text_memo_binary_pointer,
                                "T" => :datetime
                              })
+  @visual_foxpro_autoincrement_field_kinds Map.put(
+                                             @visual_foxpro_field_kinds,
+                                             "Y",
+                                             :currency
+                                           )
 
   @profiles %{
     0x02 => %{
@@ -97,6 +103,16 @@ defmodule DBF.FormatProfile do
       memo_requirement: :table_flag,
       record_layout: :dbase_legacy,
       field_kinds: @visual_foxpro_field_kinds
+    },
+    0x31 => %{
+      version: 0x31,
+      label: "Visual FoxPro with autoincrement",
+      header_layout: :visual_foxpro_32,
+      field_descriptor_layout: :visual_foxpro_32,
+      memo_family: :fpt,
+      memo_requirement: :table_flag,
+      record_layout: :visual_foxpro_nullable,
+      field_kinds: @visual_foxpro_autoincrement_field_kinds
     },
     0x83 => %{
       version: 0x83,

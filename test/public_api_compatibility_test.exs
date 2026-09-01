@@ -48,7 +48,7 @@ defmodule DBF.PublicAPICompatibilityTest do
 
     test "with_open does not invoke the callback when opening fails" do
       assert {:error, %DBF.DatabaseError{reason: :unsupported_version}} =
-               DBF.with_open("test/dbf_files/dbase_31.dbf", fn _db ->
+               DBF.with_open("test/dbf_files/dbase_32.dbf", fn _db ->
                  flunk("the callback must not run")
                end)
     end
@@ -79,11 +79,11 @@ defmodule DBF.PublicAPICompatibilityTest do
       assert {:error,
               %DBF.DatabaseError{
                 reason: :unsupported_version,
-                context: %{version: 0x31}
-              }} = DBF.open("test/dbf_files/dbase_31.dbf")
+                context: %{version: 0x32}
+              }} = DBF.open("test/dbf_files/dbase_32.dbf")
 
       assert_raise DBF.DatabaseError, fn ->
-        DBF.open!("test/dbf_files/dbase_31.dbf")
+        DBF.open!("test/dbf_files/dbase_32.dbf")
       end
     end
   end

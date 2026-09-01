@@ -22,8 +22,8 @@ coordinated with Phase 4's null and variable-width record requirements.
 ### Reassess with Phase 4 record requirements
 
 - [ ] F — Remove duplicated header/schema projections from `Database`
-- [ ] E — Deepen the physical record-reading path behind `DBF.RecordReader`
-- [ ] G — Give field-descriptor layouts cohesive ownership
+- [x] E — Deepen the physical record-reading path behind `DBF.RecordReader`
+- [x] G — Give field-descriptor layouts cohesive ownership
 
 ---
 
@@ -140,17 +140,17 @@ calculation, bounded resource reads, record-marker interpretation, delegation to
 `DBF.Record`, and record-level error context. `DBF.get/2` remains the public
 facade and translates the internal error result.
 
-**Status:** Reassess after F and alongside Phase 4 record-layout work. The reader
-must accommodate null bitmaps and variable-width metadata without adding raw
-version checks.
+**Status:** Complete. The `0x31` null-bitmap slice confirmed that bounded record
+decoding remains in `DBF.Record`; `DBF.RecordReader` owns physical access and
+record-level context without raw version checks.
 
-- [ ] E.1 Create `lib/dbf/record_reader.ex` with `@moduledoc false` and public `fetch/2` only
-- [ ] E.2 Move index validation, positional reads, marker handling, and record-level context from `DBF.get/2` into `RecordReader.fetch/2`
-- [ ] E.3 Keep binary decoding and field-level context in `DBF.Record.parse_record/2`
-- [ ] E.4 Keep public error translation in `DBF.get/2`
-- [ ] E.5 Add regression coverage for invalid indexes, markers, truncation, decode failures, and Phase 4 record metadata
-- [ ] E.6 Run `mix test`
-- [ ] E.7 Run `mix precommit`
+- [x] E.1 Create `lib/dbf/record_reader.ex` with `@moduledoc false` and public `fetch/2` only
+- [x] E.2 Move index validation, positional reads, marker handling, and record-level context from `DBF.get/2` into `RecordReader.fetch/2`
+- [x] E.3 Keep binary decoding and field-level context in `DBF.Record.parse_record/2`
+- [x] E.4 Keep public error translation in `DBF.get/2`
+- [x] E.5 Add regression coverage for invalid indexes, markers, truncation, decode failures, and Phase 4 record metadata
+- [x] E.6 Run `mix test`
+- [x] E.7 Run `mix precommit`
 
 ---
 
@@ -171,9 +171,12 @@ memo, options, profile) in `%DBF.Database{}`. ADR 0001 permits changing database
 fields, but tests that intentionally inspect the opaque value must be updated
 together and downstream source compatibility should still be considered.
 
-**Status:** Reassess at the start of Phase 4. New table flags, field metadata,
-null metadata, and variable-width records should determine the final retained
-shape; do not introduce a second compiled-record struct speculatively.
+**Status:** Reassessed with fixed-width `0x31`. `DBF.Schema` now solely owns the
+compiled null bitmap, so no second compiled-record struct is needed. Removing
+the observable `fields` projection while adding autoincrement metadata would
+create needless source-compatibility churn; defer the remaining projection
+cleanup until `0x32` provides the variable-width requirements and a public
+metadata interface can be considered coherently.
 
 - [ ] F.1 Inventory every duplicated `Database` projection and its internal/test callers
 - [ ] F.2 Retain parsed `header` and `schema` values instead of copying their fields into `Database`

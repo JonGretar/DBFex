@@ -1,6 +1,8 @@
 defmodule DBF.Schema do
   @moduledoc false
 
+  import Bitwise, only: [band: 2]
+
   alias DBF.Error
   alias DBF.Field
   alias DBF.FieldDescriptorLayout
@@ -10,12 +12,13 @@ defmodule DBF.Schema do
   alias DBF.ValueDecoder
 
   @enforce_keys [:fields, :record_length, :text_decoder]
-  defstruct [:fields, :record_length, :text_decoder]
+  defstruct [:fields, :record_length, :text_decoder, :null_bitmap]
 
   @type t :: %__MODULE__{
           fields: [Field.t()],
           record_length: pos_integer(),
-          text_decoder: TextDecoder.t()
+          text_decoder: TextDecoder.t(),
+          null_bitmap: %{record_offset: pos_integer(), length: pos_integer()} | nil
         }
 
   @spec parse(binary(), FormatProfile.t(), Header.t(), DBF.options()) ::
@@ -36,12 +39,13 @@ defmodule DBF.Schema do
              descriptor_offset,
              []
            ),
-         {:ok, fields} <- compile_fields(fields, profile, header, options) do
+         {:ok, fields, null_bitmap} <- compile_fields(fields, profile, header, options) do
       {:ok,
        %__MODULE__{
          fields: fields,
          record_length: header.record_length,
-         text_decoder: text_decoder
+         text_decoder: text_decoder,
+         null_bitmap: null_bitmap
        }}
     end
   end
@@ -181,12 +185,20 @@ defmodule DBF.Schema do
   defp decode_descriptor(
          <<raw_name::binary-size(11), type::binary-size(1),
            address::little-unsigned-integer-size(32), length, decimal, flags,
-           autoincrement::binary-size(5), reserved::binary-size(8)>> = raw,
+           autoincrement_next::little-unsigned-integer-size(32), autoincrement_step,
+           reserved::binary-size(8)>> = raw,
          :visual_foxpro_32,
          text_decoder,
          offset
        ) do
     with {:ok, name} <- decode_name(raw_name, text_decoder, offset) do
+      {autoincrement_next, autoincrement_step} =
+        if band(flags, 0x08) == 0x08 do
+          {autoincrement_next, autoincrement_step}
+        else
+          {nil, nil}
+        end
+
       {:ok,
        %Field{
          name: name,
@@ -195,11 +207,13 @@ defmodule DBF.Schema do
          decimal: decimal,
          address: address,
          flags: flags,
+         autoincrement_next: autoincrement_next,
+         autoincrement_step: autoincrement_step,
          work_area: nil,
          set_fields_flag: nil,
          descriptor_offset: offset,
          raw_descriptor: raw,
-         reserved: autoincrement <> reserved
+         reserved: reserved
        }}
     end
   end
@@ -207,7 +221,9 @@ defmodule DBF.Schema do
   defp compile_fields(fields, profile, header, options) do
     with :ok <- validate_field_lengths(fields, profile),
          :ok <- validate_field_widths(fields, profile),
-         :ok <- validate_field_flags(fields, profile) do
+         :ok <- validate_field_scales(fields, profile),
+         :ok <- validate_field_flags(fields, profile),
+         :ok <- validate_autoincrement(fields, profile) do
       {compiled, record_length, names} =
         Enum.reduce(fields, {[], 1, %{}}, fn field, {compiled, offset, names} ->
           compiled_field = %Field{
@@ -225,14 +241,19 @@ defmodule DBF.Schema do
           }
         end)
 
+      compiled = Enum.reverse(compiled)
+
       with :ok <- validate_unique_names(names),
            :ok <- validate_record_width(record_length, header) do
-        {:ok, Enum.reverse(compiled)}
+        compile_record_layout(compiled, profile)
       end
     end
   end
 
-  defp validate_field_lengths(fields, %FormatProfile{record_layout: :dbase_legacy}) do
+  defp validate_field_lengths(fields, %FormatProfile{
+         record_layout: layout
+       })
+       when layout in [:dbase_legacy, :visual_foxpro_nullable] do
     case Enum.find(fields, &(&1.length < 1)) do
       nil ->
         :ok
@@ -253,7 +274,7 @@ defmodule DBF.Schema do
          fields,
          %FormatProfile{field_descriptor_layout: :visual_foxpro_32}
        ) do
-    expected_widths = %{"I" => 4, "M" => 4, "T" => 8}
+    expected_widths = %{"I" => 4, "M" => 4, "T" => 8, "Y" => 8}
 
     case Enum.find(fields, &invalid_field_width?(&1, expected_widths)) do
       nil ->
@@ -280,6 +301,41 @@ defmodule DBF.Schema do
     end
   end
 
+  defp validate_field_scales(
+         fields,
+         %FormatProfile{record_layout: :visual_foxpro_nullable}
+       ) do
+    case Enum.find(fields, &(&1.type == "Y" and &1.decimal != 4)) do
+      nil ->
+        :ok
+
+      field ->
+        {:error,
+         schema_error(:invalid_field_scale, %{
+           field_name: field.name,
+           field_type: field.type,
+           field_scale: field.decimal,
+           expected: 4,
+           offset: field.descriptor_offset + 17
+         })}
+    end
+  end
+
+  defp validate_field_scales(_fields, _profile), do: :ok
+
+  defp validate_field_flags(
+         fields,
+         %FormatProfile{record_layout: :visual_foxpro_nullable}
+       ) do
+    case Enum.find(fields, &(not valid_nullable_field_flags?(&1))) do
+      nil ->
+        :ok
+
+      field ->
+        unsupported_field_flags(field)
+    end
+  end
+
   defp validate_field_flags(
          fields,
          %FormatProfile{field_descriptor_layout: :visual_foxpro_32}
@@ -291,17 +347,115 @@ defmodule DBF.Schema do
         :ok
 
       field ->
-        {:error,
-         schema_error(:unsupported_field_flags, %{
-           field_name: field.name,
-           field_type: field.type,
-           field_flags: field.flags,
-           offset: field.descriptor_offset + 18
-         })}
+        unsupported_field_flags(field)
     end
   end
 
   defp validate_field_flags(_fields, _profile), do: :ok
+
+  defp validate_autoincrement(
+         fields,
+         %FormatProfile{record_layout: :visual_foxpro_nullable}
+       ) do
+    case Enum.find(fields, &(&1.autoincrement_step == 0)) do
+      nil ->
+        :ok
+
+      field ->
+        {:error,
+         schema_error(:invalid_autoincrement_step, %{
+           field_name: field.name,
+           autoincrement_step: field.autoincrement_step,
+           offset: field.descriptor_offset + 23
+         })}
+    end
+  end
+
+  defp validate_autoincrement(_fields, _profile), do: :ok
+
+  defp valid_nullable_field_flags?(%{type: "0", flags: flags}), do: flags == 0x05
+
+  defp valid_nullable_field_flags?(%{type: "I", flags: flags}),
+    do: flags in [0x00, 0x02, 0x04, 0x06, 0x0C, 0x0E]
+
+  defp valid_nullable_field_flags?(%{type: type, flags: flags})
+       when type in ["M", "T", "Y"],
+       do: flags in [0x00, 0x02, 0x04, 0x06]
+
+  defp valid_nullable_field_flags?(%{flags: flags}), do: flags in [0x00, 0x02]
+
+  defp unsupported_field_flags(field) do
+    {:error,
+     schema_error(:unsupported_field_flags, %{
+       field_name: field.name,
+       field_type: field.type,
+       field_flags: field.flags,
+       offset: field.descriptor_offset + 18
+     })}
+  end
+
+  defp compile_record_layout(fields, %FormatProfile{record_layout: :dbase_legacy}) do
+    {:ok, fields, nil}
+  end
+
+  defp compile_record_layout(fields, %FormatProfile{
+         record_layout: :visual_foxpro_nullable
+       }) do
+    null_fields = Enum.filter(fields, &(&1.type == "0"))
+    nullable_fields = Enum.filter(fields, &(band(&1.flags, 0x02) == 0x02))
+
+    case {null_fields, nullable_fields} do
+      {[], []} ->
+        {:ok, fields, nil}
+
+      {[null_field], [_ | _]} ->
+        compile_null_bitmap(fields, null_field, length(nullable_fields))
+
+      {[], [_ | _]} ->
+        {:error, schema_error(:missing_null_bitmap, %{})}
+
+      {[_ | _], []} ->
+        {:error, schema_error(:unexpected_null_bitmap, %{})}
+
+      {null_fields, _nullable_fields} ->
+        {:error, schema_error(:multiple_null_bitmaps, %{count: length(null_fields)})}
+    end
+  end
+
+  defp compile_null_bitmap(fields, null_field, nullable_count) do
+    expected_length = div(nullable_count + 7, 8)
+
+    cond do
+      null_field.name != "_NullFlags" ->
+        {:error,
+         schema_error(:invalid_null_bitmap, %{
+           field_name: null_field.name,
+           expected_name: "_NullFlags"
+         })}
+
+      null_field.length != expected_length ->
+        {:error,
+         schema_error(:invalid_null_bitmap_width, %{
+           expected_bytes: expected_length,
+           actual_bytes: null_field.length
+         })}
+
+      true ->
+        {visible_fields, _next_bit} =
+          Enum.map_reduce(fields, 0, &compile_nullable_field/2)
+
+        {:ok, Enum.reject(visible_fields, &is_nil/1),
+         %{record_offset: null_field.record_offset, length: null_field.length}}
+    end
+  end
+
+  defp compile_nullable_field(%{type: "0"}, bit), do: {nil, bit}
+
+  defp compile_nullable_field(%{flags: flags} = field, bit) when band(flags, 0x02) == 0x02 do
+    {%Field{field | null_bit: bit}, bit + 1}
+  end
+
+  defp compile_nullable_field(field, bit), do: {field, bit}
 
   defp validate_unique_names(names) do
     case Enum.find(names, fn {_name, offsets} -> length(offsets) > 1 end) do

@@ -6,16 +6,17 @@ defmodule DBF.FormatProfileTest do
 
   test "selects the complete profile for each supported version" do
     expected = [
-      {0x02, :foxbase_8, :foxbase_16, :none, :none},
-      {0x03, :dbase_legacy_32, :dbase_legacy_32, :none, :none},
-      {0x30, :visual_foxpro_32, :visual_foxpro_32, :fpt, :table_flag},
-      {0x83, :dbase_legacy_32, :dbase_legacy_32, :dbt_iii, :required},
-      {0x8B, :dbase_legacy_32, :dbase_legacy_32, :dbt_iv, :required},
-      {0xF5, :dbase_legacy_32, :dbase_legacy_32, :fpt, :required}
+      {0x02, :foxbase_8, :foxbase_16, :none, :none, :dbase_legacy},
+      {0x03, :dbase_legacy_32, :dbase_legacy_32, :none, :none, :dbase_legacy},
+      {0x30, :visual_foxpro_32, :visual_foxpro_32, :fpt, :table_flag, :dbase_legacy},
+      {0x31, :visual_foxpro_32, :visual_foxpro_32, :fpt, :table_flag, :visual_foxpro_nullable},
+      {0x83, :dbase_legacy_32, :dbase_legacy_32, :dbt_iii, :required, :dbase_legacy},
+      {0x8B, :dbase_legacy_32, :dbase_legacy_32, :dbt_iv, :required, :dbase_legacy},
+      {0xF5, :dbase_legacy_32, :dbase_legacy_32, :fpt, :required, :dbase_legacy}
     ]
 
-    for {version, header_layout, field_descriptor_layout, memo_family, memo_requirement} <-
-          expected do
+    for {version, header_layout, field_descriptor_layout, memo_family, memo_requirement,
+         record_layout} <- expected do
       assert {:ok,
               %FormatProfile{
                 version: ^version,
@@ -23,7 +24,7 @@ defmodule DBF.FormatProfileTest do
                 field_descriptor_layout: ^field_descriptor_layout,
                 memo_family: ^memo_family,
                 memo_requirement: ^memo_requirement,
-                record_layout: :dbase_legacy
+                record_layout: ^record_layout
               }} = FormatProfile.select(version)
     end
   end
@@ -42,6 +43,9 @@ defmodule DBF.FormatProfileTest do
     assert visual_foxpro.field_kinds["M"] == :text_memo_binary_pointer
     refute Map.has_key?(visual_foxpro.field_kinds, "Y")
 
+    assert {:ok, visual_foxpro_autoincrement} = FormatProfile.select(0x31)
+    assert visual_foxpro_autoincrement.field_kinds["Y"] == :currency
+
     for version <- [0x83, 0x8B, 0xF5] do
       assert {:ok, profile} = FormatProfile.select(version)
       assert profile.field_kinds["M"] == :text_memo
@@ -51,7 +55,7 @@ defmodule DBF.FormatProfileTest do
   end
 
   test "rejects every other version with contextual information" do
-    for version <- 0..255, version not in [0x02, 0x03, 0x30, 0x83, 0x8B, 0xF5] do
+    for version <- 0..255, version not in [0x02, 0x03, 0x30, 0x31, 0x83, 0x8B, 0xF5] do
       assert {:error,
               %Error{
                 reason: :unsupported_version,

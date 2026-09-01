@@ -373,8 +373,8 @@ Target version bytes `0xF5` and `0x30` first because the repository already
 contains DBF/FPT fixtures for both.
 
 - [x] Implement FPT headers and text blocks with their specified big-endian values.
-- [ ] Support and test baseline FoxPro/VFP field types used by the fixtures,
-      including little-endian integer/currency values and timestamp values.
+- [x] Support and test little-endian integer, currency, and timestamp values
+      used by the accepted Visual FoxPro fixtures.
 - [x] Support text memos with decimal FoxPro or binary Visual FoxPro pointers.
 - [ ] Preserve binary picture/general data as binaries.
 - [ ] Parse VFP table flags, code page, field flags, and the optional backlink
@@ -384,10 +384,12 @@ contains DBF/FPT fixtures for both.
 
 Next target `0x31` and `0x32`, for which fixtures also already exist.
 
-- [ ] Parse field flags and autoincrement next-value/step metadata.
+- [x] Parse the evidenced `0x31` field flags and autoincrement
+      next-value/step metadata.
 - [ ] Decode `Varchar`, `Varbinary`, and `Blob` according to the VFP descriptor
       and per-record length/null metadata.
-- [ ] Implement the VFP null bitmap and distinguish null from blank.
+- [x] Implement the fixed-width `0x31` null bitmap and distinguish null from
+      blank during decoding. Keep `0x32` length/null metadata separate.
 
 #### 4.3 dBASE Level 5 and Level 7
 
