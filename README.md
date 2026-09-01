@@ -11,7 +11,7 @@ Add `dbf_ex` to your dependencies:
 ```elixir
 def deps do
   [
-    {:dbf_ex, "~> 0.3.0"}
+    {:dbf_ex, "~> 0.4.0"}
   ]
 end
 ```
