@@ -61,6 +61,9 @@ defmodule DBF.FormatProfileTest do
       refute Map.has_key?(profile.field_kinds, "I")
       refute Map.has_key?(profile.field_kinds, "Y")
     end
+
+    assert {:ok, foxpro_2} = FormatProfile.select(0xF5)
+    assert foxpro_2.field_kinds["G"] == :general_memo_text_pointer
   end
 
   test "rejects every other version with contextual information" do

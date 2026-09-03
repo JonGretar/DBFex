@@ -47,6 +47,7 @@ defmodule DBF.ValueDecoder do
   defp compile_kind(:binary_memo_pointer, _options), do: {:binary, :binary_memo}
   defp compile_kind(:picture_memo_pointer, _options), do: {:binary, :picture_memo}
   defp compile_kind(:general_memo_pointer, _options), do: {:binary, :general_memo}
+  defp compile_kind(:general_memo_text_pointer, _options), do: {:text, :general_memo}
 
   defp compile_kind(:numeric, options) do
     {:text, {:numeric, Keyword.get(options, :numeric, :float)}}
@@ -134,21 +135,11 @@ defmodule DBF.ValueDecoder do
   end
 
   def decode(db, %{decoder: {:text, :memo}}, value) do
-    new_value = TextDecoder.trim(value, :both)
+    decode_decimal_memo_pointer(db, value, :text)
+  end
 
-    case Integer.parse(new_value) do
-      {_block, rest} when rest != "" ->
-        {:error, Error.new(:invalid_memo, :invalid_memo_pointer, %{raw_pointer: new_value})}
-
-      {block, ""} ->
-        read_text_memo(db, block)
-
-      :error when new_value == "" ->
-        nil
-
-      :error ->
-        {:error, Error.new(:invalid_memo, :invalid_memo_pointer, %{raw_pointer: new_value})}
-    end
+  def decode(db, %{decoder: {:text, :general_memo}}, value) do
+    decode_decimal_memo_pointer(db, value, :general)
   end
 
   def decode(
@@ -254,12 +245,33 @@ defmodule DBF.ValueDecoder do
     end
   end
 
+  defp decode_decimal_memo_pointer(db, value, payload_type) do
+    new_value = TextDecoder.trim(value, :both)
+
+    case Integer.parse(new_value) do
+      {_block, rest} when rest != "" ->
+        {:error, Error.new(:invalid_memo, :invalid_memo_pointer, %{raw_pointer: new_value})}
+
+      {block, ""} ->
+        read_memo(db, block, payload_type)
+
+      :error when new_value == "" ->
+        nil
+
+      :error ->
+        {:error, Error.new(:invalid_memo, :invalid_memo_pointer, %{raw_pointer: new_value})}
+    end
+  end
+
   defp read_text_memo(db, block) do
     case Memo.get_block(db.resource, db.memo_file, block, :text) do
       {:error, %Error{}} = error -> error
       memo -> decode_text(db.text_decoder, memo, :none)
     end
   end
+
+  defp read_memo(db, block, :text), do: read_text_memo(db, block)
+  defp read_memo(db, block, :general), do: read_general_memo(db, block)
 
   defp read_binary_memo(db, block) do
     Memo.get_block(db.resource, db.memo_file, block, :binary)

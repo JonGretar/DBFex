@@ -47,6 +47,7 @@ defmodule DBF.FormatProfile do
           | :binary_memo_pointer
           | :picture_memo_pointer
           | :general_memo_pointer
+          | :general_memo_text_pointer
 
   @type t :: %__MODULE__{
           version: byte(),
@@ -68,6 +69,7 @@ defmodule DBF.FormatProfile do
   }
 
   @memo_field_kinds Map.put(@legacy_field_kinds, "M", :text_memo)
+  @foxpro_2_field_kinds Map.put(@memo_field_kinds, "G", :general_memo_text_pointer)
   @visual_foxpro_field_kinds Map.merge(@legacy_field_kinds, %{
                                "B" => :double,
                                "G" => :general_memo_pointer,
@@ -163,13 +165,13 @@ defmodule DBF.FormatProfile do
     },
     0xF5 => %{
       version: 0xF5,
-      label: "FoxPro 2.x with memo file",
+      label: "FoxPro 2.x for DOS/Windows with memo file",
       header_layout: :dbase_legacy_32,
       field_descriptor_layout: :dbase_legacy_32,
       memo_family: :fpt,
       memo_requirement: :required,
       record_layout: :dbase_legacy,
-      field_kinds: @memo_field_kinds
+      field_kinds: @foxpro_2_field_kinds
     }
   }
 

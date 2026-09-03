@@ -95,9 +95,16 @@ See [`ADR 0003`](https://github.com/JonGretar/DBFex/blob/main/docs/adr/0003-comp
 - The verified dBASE IV fixture stores its little-endian block size at DBT header
   offset 20, uses `FF FF 08 00` block signatures, includes the 8-byte block
   header in each declared memo length, and uses `0x1F` as a text terminator.
-- The partial FoxPro 2.x fixture stores its big-endian block size at FPT header
-  offset 6, uses block type `1` for text, and excludes the 8-byte block header
-  from each big-endian declared payload length.
+- FoxPro 2.x stores its big-endian block size at FPT header offset 6 and
+  excludes the 8-byte block header from each big-endian declared payload
+  length. The fixtures use block type `1` for text Memo and type `2` for
+  General/OLE objects; record fields contain space-padded decimal pointers.
+- Microsoft XSource's `WIZBMP` table demonstrates that a FoxPro 2.x `M` field
+  can contain BMP bytes while still using FPT block type `1`. The descriptor
+  has no binary flag, so a generic reader cannot infer that application-level
+  convention. DBFex follows the declared Memo field semantics and decodes `M`
+  as text; a future explicit raw-memo policy may expose such application data
+  without unreliable content sniffing.
 - Microsoft defines FPT block type `0` for Picture data and type `1` for text.
   The VFP 9 SP2 producer fixture stores both binary Memo (`M NOCPTRANS`) and Blob
   (`W`) payloads in type-`1` blocks. Use the DBF field descriptor to decide
@@ -146,6 +153,9 @@ Use these to compare behavior and discover edge cases, not as normative sources:
 - [dbfread](https://github.com/olemb/dbfread) (Python) — unusually readable field and memo parsing; inspect `field_parser.py` and `memo.py`. Its comments also document unresolved ambiguities, so cross-check them.
 - [python-dbf](https://github.com/ethanfurman/dbf) (Python) — broad dBASE III, FoxPro, VFP, Clipper, memo, null, and value-semantics coverage.
 - [OSGeo Shapelib `dbfopen.c`](https://github.com/OSGeo/shapelib/blob/master/dbfopen.c) (C) — mature defensive I/O, offset checks, deletion handling, and code-page metadata for the shapefile-oriented DBF subset; it is not a general memo/VFP reference.
+- [VFPX Wizards](https://github.com/VFPX/Wizards) — Microsoft XSource
+  components under the Microsoft Permissive License; its `wzgraph` DBF/FPT pair
+  provides a real `0xF5` General/OLE fixture.
 
 As of 2026-09-03, these projects do not provide a checked-in fixture covering
 VFP9 Varbinary (`Q`) or Blob (`W`). `dbfread` has a VFP `0x30` `C`/`D`/text-`M`

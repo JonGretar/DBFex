@@ -271,6 +271,30 @@ defmodule DBF.FixtureManifest do
       normative_sources: [:visual_foxpro_fpt, :older_xbase_secondary]
     },
     %{
+      id: :foxpro_2_general,
+      files: %{
+        table: "test/dbf_files/foxpro2_general.dbf",
+        memo: "test/dbf_files/foxpro2_general.fpt",
+        license: ["test/dbf_files/foxpro2_general_LICENSE.txt"]
+      },
+      profile: %{format: :foxpro, version: 0xF5, memo: :fpt, encoding: {:ldid, 0x00}},
+      provenance: %{
+        producer: "Microsoft Visual FoxPro XSource wizard data",
+        origin: "VFPX/Wizards@07acd01df00e3762be5f32140dee60a3246a6307",
+        redistribution: :microsoft_permissive_license
+      },
+      support: :verified,
+      exercise: {:open, %{records: 1, fields: 2}},
+      expected_values: {:payload_sha256, [record: 0, fields: ["GRAPH_ROW", "GRAPH_COL"]]},
+      normative_sources: [:visual_foxpro_fpt, :older_xbase_secondary],
+      notes: [
+        "Original wzgraph DBF/FPT pair retained unchanged with its Ms-PL license.",
+        "DBF SHA-256 e1d5c0053c33ef135e7c2d680107b001beb8fdf4e36f6c7fe6e6debd1c97ab06.",
+        "FPT SHA-256 56e309403c0f5b0617e5e043c082e86b7ae20f6fc85eb45dfe2764d1863a07bb.",
+        "Both General fields use space-padded decimal pointers to FPT type-2 object blocks."
+      ]
+    },
+    %{
       id: :malformed_empty,
       files: %{table: "test/dbf_files/empty.dbf"},
       profile: %{format: :unknown, version: 0x0D, memo: :none, encoding: :not_applicable},

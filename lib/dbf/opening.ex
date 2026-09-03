@@ -151,6 +151,7 @@ defmodule DBF.Opening do
       Enum.filter(schema.fields, fn field ->
         field.decoder in [
           {:text, :memo},
+          {:text, :general_memo},
           {:binary, :text_memo},
           {:binary, :binary_memo},
           {:binary, :picture_memo},
@@ -225,12 +226,25 @@ defmodule DBF.Opening do
     {:ok, if(block == 0, do: nil, else: {block, :general})}
   end
 
+  defp parse_memo_probe(
+         raw_pointer,
+         record_number,
+         %{decoder: {:text, :general_memo}} = field,
+         offset
+       ) do
+    parse_decimal_memo_probe(raw_pointer, record_number, field, offset, :general)
+  end
+
   defp parse_memo_probe(raw_pointer, record_number, field, offset) do
+    parse_decimal_memo_probe(raw_pointer, record_number, field, offset, :text)
+  end
+
+  defp parse_decimal_memo_probe(raw_pointer, record_number, field, offset, payload_type) do
     pointer = String.trim(raw_pointer)
 
     case Integer.parse(pointer) do
       {block, ""} when block >= 1 ->
-        {:ok, block}
+        {:ok, memo_probe(block, payload_type)}
 
       :error when pointer == "" ->
         {:ok, nil}
@@ -246,6 +260,9 @@ defmodule DBF.Opening do
          })}
     end
   end
+
+  defp memo_probe(block, :text), do: block
+  defp memo_probe(block, payload_type), do: {block, payload_type}
 
   defp memo_paths(_filename, memo_path, _family) when is_binary(memo_path), do: [memo_path]
 

@@ -220,7 +220,7 @@ Current profiles are:
 | `0x30`  | Visual FoxPro       | `:visual_foxpro_32` | `:visual_foxpro_32` | optional FPT | legacy kinds, integer, timestamp, text memo, type-0 Picture payload |
 | `0x83`  | dBASE III with memo | `:dbase_legacy_32`   | `:dbase_legacy_32`   | DBT III | legacy kinds plus text memo                 |
 | `0x8B`  | dBASE IV with memo  | `:dbase_legacy_32`   | `:dbase_legacy_32`   | DBT IV  | legacy kinds plus text memo                 |
-| `0xF5`  | FoxPro 2.x          | `:dbase_legacy_32`   | `:dbase_legacy_32`   | FPT     | legacy kinds plus text memo                 |
+| `0xF5`  | FoxPro 2.x DOS/Windows | `:dbase_legacy_32` | `:dbase_legacy_32`   | FPT     | legacy kinds, text memo, General/OLE        |
 
 A recognized one-byte field type is not enough to enable decoding. The selected
 profile must explicitly advertise that field kind. Unsupported capabilities are

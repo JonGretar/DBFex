@@ -15,7 +15,9 @@ their field descriptors require the payloads to remain binary.
 Picture (`P`) data is evidenced in type-`0` blocks. An MIT-licensed Visual
 FoxPro demo table from `arquimedescrivelari/foxpages` provides the missing
 General/OLE (`G`) evidence: all 18 populated General pointers across 11 records
-reference FPT type-`2` object blocks.
+reference FPT type-`2` object blocks. Microsoft XSource's Ms-PL-licensed
+`wzgraph` table provides corresponding FoxPro 2.x `0xF5` evidence: its two
+space-padded decimal `G` pointers also reference type-`2` blocks.
 
 ## Decision
 
@@ -31,7 +33,9 @@ the source of value semantics:
 
 Compile these choices into distinct field decoders during schema parsing.
 `DBF.Memo.FPT` validates the expected storage block type but does not decide
-whether the returned bytes are text.
+whether the returned bytes are text. Pointer representation remains a separate
+profile decision: Visual FoxPro uses four-byte little-endian pointers while
+FoxPro 2.x uses space-padded decimal pointers.
 
 ## Consequences
 

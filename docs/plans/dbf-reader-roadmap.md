@@ -380,8 +380,21 @@ contains DBF/FPT fixtures for both.
 - [x] Preserve General/OLE object data as opaque binaries. The MIT-licensed
       `foxpages` producer fixture confirms that populated field type `G` pointers
       use FPT object block type `2`.
+- [x] Verify FoxPro 2.x for DOS/Windows with Microsoft XSource's Ms-PL
+      `0xF5` fixture: its decimal `G` pointers reference FPT type-`2` OLE
+      objects. Macintosh type-`0` Picture-in-General behavior remains explicitly
+      unevidenced rather than inferred.
 - [x] Parse VFP table flags, code page, field flags, and the optional backlink
       area without treating them as dBASE IV metadata.
+
+Non-blocking FoxPro 2.x follow-ups:
+
+- [ ] Obtain a licensed Macintosh-produced `0xF5` fixture before accepting
+      type-`0` Picture blocks through a General field.
+- [ ] Consider an explicit raw-Memo option if callers need application-defined
+      binary data stored in `M`. Microsoft XSource's `WIZBMP` proves that this
+      convention exists, but neither the descriptor nor FPT type `1`
+      distinguishes it from text, so automatic detection is not safe.
 
 #### 4.2 Visual FoxPro autoincrement and variable-width records
 
