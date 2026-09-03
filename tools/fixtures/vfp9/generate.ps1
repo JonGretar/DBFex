@@ -33,6 +33,39 @@ function Invoke-VfpSql {
     }
 }
 
+function Set-VfpValue {
+    param(
+        [System.Data.OleDb.OleDbConnection] $Connection,
+        [string] $Label,
+        [int] $RecordId,
+        [string] $Column,
+        [System.Data.OleDb.OleDbType] $Type,
+        [object] $Value,
+        [int] $Size = 0
+    )
+
+    $command = $Connection.CreateCommand()
+    try {
+        Write-Host "VFPOLEDB: $Label"
+        $command.CommandText = "UPDATE vfp9_binary SET $Column = ? WHERE ID = $RecordId"
+
+        $parameter = New-Object System.Data.OleDb.OleDbParameter
+        $parameter.OleDbType = $Type
+        if ($Size -gt 0) {
+            $parameter.Size = $Size
+        }
+        $parameter.Value = if ($null -eq $Value) { [DBNull]::Value } else { $Value }
+        [void] $command.Parameters.Add($parameter)
+        [void] $command.ExecuteNonQuery()
+    }
+    catch {
+        throw "VFPOLEDB failed during '$Label': $($_.Exception.Message)"
+    }
+    finally {
+        $command.Dispose()
+    }
+}
+
 function Get-ObservedStructure {
     param([string] $TablePath)
 
@@ -125,36 +158,30 @@ ALTER TABLE vfp9_binary ADD COLUMN W_BYTES W NULL
 ALTER TABLE vfp9_binary ADD COLUMN B_VALUE B(4) NULL
 "@
 
-    Invoke-VfpSql $connection "insert short and multi-block values" @"
-INSERT INTO vfp9_binary
-    (ID, V_TEXT, Q_BYTES, C_BYTES, M_BYTES, W_BYTES, B_VALUE)
-VALUES
-    (1, 'text with tail ', $(ConvertTo-HexLiteral $shortBinary),
-     $(ConvertTo-HexLiteral $binaryCharacter), $(ConvertTo-HexLiteral $memoBinary),
-     $(ConvertTo-HexLiteral $blobBinary), -12345.625)
-"@
+    foreach ($recordId in 1..4) {
+        Invoke-VfpSql $connection "create record $recordId" "INSERT INTO vfp9_binary (ID) VALUES ($recordId)"
+    }
 
-    Invoke-VfpSql $connection "insert full-width and empty memo values" @"
-INSERT INTO vfp9_binary
-    (ID, V_TEXT, Q_BYTES, C_BYTES, M_BYTES, W_BYTES, B_VALUE)
-VALUES
-    (2, '12345678901234567890', $(ConvertTo-HexLiteral $fullBinary),
-     $(ConvertTo-HexLiteral $fullBinary), 0h, 0h, 1.25)
-"@
+    Set-VfpValue $connection "set record 1 Varchar" 1 "V_TEXT" VarChar "text with tail " 20
+    Set-VfpValue $connection "set record 1 Varbinary" 1 "Q_BYTES" VarBinary $shortBinary 20
+    Set-VfpValue $connection "set record 1 binary Character" 1 "C_BYTES" VarBinary $binaryCharacter 20
+    Set-VfpValue $connection "set record 1 binary Memo" 1 "M_BYTES" LongVarBinary $memoBinary
+    Set-VfpValue $connection "set record 1 Blob" 1 "W_BYTES" LongVarBinary $blobBinary
+    Set-VfpValue $connection "set record 1 Double" 1 "B_VALUE" Double -12345.625
 
-    Invoke-VfpSql $connection "insert explicit null values" @"
-INSERT INTO vfp9_binary
-    (ID, V_TEXT, Q_BYTES, C_BYTES, M_BYTES, W_BYTES, B_VALUE)
-VALUES
-    (3, NULL, NULL, NULL, NULL, NULL, NULL)
-"@
+    Set-VfpValue $connection "set record 2 full-width Varchar" 2 "V_TEXT" VarChar "12345678901234567890" 20
+    Set-VfpValue $connection "set record 2 full-width Varbinary" 2 "Q_BYTES" VarBinary $fullBinary 20
+    Set-VfpValue $connection "set record 2 full-width binary Character" 2 "C_BYTES" VarBinary $fullBinary 20
+    Set-VfpValue $connection "set record 2 empty binary Memo" 2 "M_BYTES" LongVarBinary ([byte[]] @())
+    Set-VfpValue $connection "set record 2 empty Blob" 2 "W_BYTES" LongVarBinary ([byte[]] @())
+    Set-VfpValue $connection "set record 2 Double" 2 "B_VALUE" Double 1.25
 
-    Invoke-VfpSql $connection "insert empty values" @"
-INSERT INTO vfp9_binary
-    (ID, V_TEXT, Q_BYTES, C_BYTES, M_BYTES, W_BYTES, B_VALUE)
-VALUES
-    (4, '', 0h, 0h, 0h, 0h, 0.0)
-"@
+    Set-VfpValue $connection "set record 4 empty Varchar" 4 "V_TEXT" VarChar "" 20
+    Set-VfpValue $connection "set record 4 empty Varbinary" 4 "Q_BYTES" VarBinary ([byte[]] @()) 20
+    Set-VfpValue $connection "set record 4 empty binary Character" 4 "C_BYTES" VarBinary ([byte[]] @()) 20
+    Set-VfpValue $connection "set record 4 empty binary Memo" 4 "M_BYTES" LongVarBinary ([byte[]] @())
+    Set-VfpValue $connection "set record 4 empty Blob" 4 "W_BYTES" LongVarBinary ([byte[]] @())
+    Set-VfpValue $connection "set record 4 zero Double" 4 "B_VALUE" Double 0.0
 
     Invoke-VfpSql $connection "mark the second record deleted" "DELETE FROM vfp9_binary WHERE ID = 2"
 }

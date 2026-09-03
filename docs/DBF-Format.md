@@ -52,6 +52,8 @@ evidence; never infer complete support from the version byte alone.
 - Current Microsoft documentation lists `0x42` for Varchar/Varbinary/Blob tables,
   while the checked-in independently identified fixture uses `0x32`. Support
   only the evidenced `0x32` profile rather than aliasing the undocumented byte.
+  A VFPOLEDB 9 SP2 producer probe also emitted `0x32` after adding `V`, `Q`, and
+  `W`, independently corroborating the fixture.
 - Duplicate field names are legal in real files, often after name truncation.
   Never silently overwrite one value when constructing a map.
 

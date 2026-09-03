@@ -417,8 +417,10 @@ Before claiming complete Visual FoxPro support:
       multi-block values where applicable.
 - [ ] Retain the generator, exact inserted values, producer/version, provenance,
       redistribution permission, and file hashes with the fixture.
-- [ ] Resolve the primary documentation's `0x42` signature versus the existing
-      independently identified `0x32` fixture before aliasing either version.
+- [x] Resolve the primary documentation's `0x42` signature versus the existing
+      independently identified `0x32` fixture. VFPOLEDB 9 SP2 emitted `0x32`
+      after successfully adding `V`, `Q`, and `W`; retain `0x32` and do not add
+      an unevidenced `0x42` alias.
 - [ ] Use mature readers as cross-checks, not as the normative source of expected
       values or as substitutes for producer evidence.
 

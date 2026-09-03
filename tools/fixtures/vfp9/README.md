@@ -63,3 +63,22 @@ General/OLE (`G`) is intentionally absent. Creating a meaningful General value
 requires an OLE object producer and should be handled by a separate VFP9
 application-generated fixture. Do not infer its FPT type-2 behavior from this
 provider probe.
+
+## Observed probe runs
+
+Run `33748910137` proved that VFPOLEDB 9 SP2 can create every requested field.
+The provider emitted version `0x32`, corroborating the repository's existing
+fixture rather than the `0x42` value in current Microsoft documentation. Before
+the first insert failed on inline FoxPro hex-literal syntax, its partial artifact
+established:
+
+- `Q(20)` as a 20-byte field with flags `0x06`;
+- binary `C(20)` as a 20-byte field with flags `0x06`;
+- binary `M` and `W` as four-byte fields with flags `0x06`;
+- `B(4)` as an eight-byte field with decimal metadata `4` and flags `0x06`;
+- a two-byte `_NullFlags` system field for the seven preceding fields; and
+- a 64-byte FPT block size.
+
+The generator now uses typed OLE DB parameters instead of embedding binary
+literals in command text. Keep subsequent run observations here until an
+accepted fixture and manifest supersede this log.
