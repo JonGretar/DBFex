@@ -54,20 +54,24 @@ function Set-VfpValue {
         if ($Size -gt 0) {
             $parameter.Size = $Size
         }
-        $parameter.Value =
-            if ($null -eq $Value) {
-                [DBNull]::Value
+        if ($null -eq $Value) {
+            $parameter.Value = [DBNull]::Value
+        }
+        elseif ($Type -in @(
+            [System.Data.OleDb.OleDbType]::Binary,
+            [System.Data.OleDb.OleDbType]::VarBinary,
+            [System.Data.OleDb.OleDbType]::LongVarBinary
+        )) {
+            [byte[]] $binaryValue = @($Value)
+            $parameter.Value = [object] $binaryValue
+
+            if ($parameter.Value.GetType() -ne [byte[]]) {
+                throw "Internal parameter conversion produced $($parameter.Value.GetType().FullName), expected Byte[]"
             }
-            elseif ($Type -in @(
-                [System.Data.OleDb.OleDbType]::Binary,
-                [System.Data.OleDb.OleDbType]::VarBinary,
-                [System.Data.OleDb.OleDbType]::LongVarBinary
-            )) {
-                [byte[]] @($Value)
-            }
-            else {
-                $Value
-            }
+        }
+        else {
+            $parameter.Value = $Value
+        }
         [void] $command.Parameters.Add($parameter)
         [void] $command.ExecuteNonQuery()
     }
