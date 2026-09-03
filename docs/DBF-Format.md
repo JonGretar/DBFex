@@ -97,8 +97,10 @@ See [`ADR 0003`](https://github.com/JonGretar/DBFex/blob/main/docs/adr/0003-comp
   offset 6, uses block type `1` for text, and excludes the 8-byte block header
   from each big-endian declared payload length.
 - Microsoft defines FPT block type `0` for binary Picture data and type `1` for
-  text. Visual FoxPro Picture (`P`) and General (`G`) fields use little-endian
-  32-bit FPT pointers; return type-0 payloads unchanged.
+  text. `dbfread` additionally recognizes type `2` as an Object block. The
+  current synthetic Picture/General regression proves only type-0 payload
+  preservation; do not claim complete General/OLE support until a producer
+  fixture establishes its type-2 behavior.
 - A memo may span several blocks. Bounds-check `block * block_size`, headers,
   and declared payload lengths before allocating or reading.
 - Memo, General, Picture, Blob, and binary-flagged Character/Memo values are not
@@ -138,6 +140,17 @@ Use these to compare behavior and discover edge cases, not as normative sources:
 - [dbfread](https://github.com/olemb/dbfread) (Python) — unusually readable field and memo parsing; inspect `field_parser.py` and `memo.py`. Its comments also document unresolved ambiguities, so cross-check them.
 - [python-dbf](https://github.com/ethanfurman/dbf) (Python) — broad dBASE III, FoxPro, VFP, Clipper, memo, null, and value-semantics coverage.
 - [OSGeo Shapelib `dbfopen.c`](https://github.com/OSGeo/shapelib/blob/master/dbfopen.c) (C) — mature defensive I/O, offset checks, deletion handling, and code-page metadata for the shapefile-oriented DBF subset; it is not a general memo/VFP reference.
+
+As of 2026-09-03, these projects do not provide a checked-in fixture covering
+VFP9 Varbinary (`Q`) or Blob (`W`). `dbfread` has a VFP `0x30` `C`/`D`/text-`M`
+DBF/FPT pair; `dbase-rs` has no FPT test fixture; `python-dbf` has no checked-in
+binary fixture and has a reported VFP9 FPT-writing compatibility issue; Shapelib
+targets the non-memo shapefile DBF subset.
+
+The repository's manually triggered `generate-vfp9-fixture.yml` workflow uses
+the archived Microsoft VFPOLEDB 9 SP2 provider as a producer probe for `V`, `Q`,
+binary `C`/`M`, `W`, and `B`. Treat its artifact as unreviewed evidence until
+the acceptance checklist in `tools/fixtures/vfp9/README.md` is complete.
 
 When a source and fixture disagree, preserve the raw bytes, identify the producing
 application if possible, and capture the decision in a regression test or ADR.

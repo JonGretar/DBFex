@@ -1,0 +1,72 @@
+name: Generate Visual FoxPro 9 fixture
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    name: Generate with VFPOLEDB 9 SP2
+    runs-on: windows-2022
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download and verify the archived Microsoft provider
+        shell: pwsh
+        env:
+          PROVIDER_URL: https://raw.githubusercontent.com/VFPX/VFPInstallers/4d728a7b068ea0f34b80062268708747ad91e232/VFPOLEDBSetup.msi
+          PROVIDER_SHA256: 741a707a3b2535d166cbe4e29c4b267f614f23514e04782b79f8e7b8c822c736
+        run: |
+          $installer = Join-Path $env:RUNNER_TEMP "VFPOLEDBSetup.msi"
+          Invoke-WebRequest -Uri $env:PROVIDER_URL -OutFile $installer
+
+          $actualHash = (Get-FileHash -Algorithm SHA256 $installer).Hash.ToLowerInvariant()
+          if ($actualHash -ne $env:PROVIDER_SHA256) {
+            throw "VFPOLEDB installer checksum mismatch: $actualHash"
+          }
+
+          $signature = Get-AuthenticodeSignature $installer
+          if ($signature.Status -ne "Valid") {
+            throw "VFPOLEDB installer signature is not valid: $($signature.Status)"
+          }
+          if ($signature.SignerCertificate.Subject -notmatch "Microsoft") {
+            throw "VFPOLEDB installer is not signed by Microsoft: $($signature.SignerCertificate.Subject)"
+          }
+
+      - name: Install the 32-bit provider
+        shell: pwsh
+        run: |
+          $installer = Join-Path $env:RUNNER_TEMP "VFPOLEDBSetup.msi"
+          $process = Start-Process msiexec.exe `
+            -ArgumentList @("/i", "`"$installer`"", "/qn", "/norestart") `
+            -Wait `
+            -PassThru
+          if ($process.ExitCode -ne 0) {
+            throw "VFPOLEDB installation failed with exit code $($process.ExitCode)"
+          }
+
+      - name: Generate fixture in a 32-bit process
+        shell: pwsh
+        run: |
+          $powershell32 = Join-Path $env:WINDIR "SysWOW64\WindowsPowerShell\v1.0\powershell.exe"
+          & $powershell32 `
+            -NoProfile `
+            -NonInteractive `
+            -ExecutionPolicy Bypass `
+            -File tools/fixtures/vfp9/generate.ps1 `
+            -OutputDirectory "$env:RUNNER_TEMP\vfp9-fixture"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Fixture generation failed with exit code $LASTEXITCODE"
+          }
+
+      - name: Upload unreviewed fixture evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: vfp9-binary-fixture
+          path: ${{ runner.temp }}/vfp9-fixture
+          if-no-files-found: error
+          retention-days: 14
