@@ -4,7 +4,7 @@ defmodule DBF.MixProject do
   def project do
     [
       app: :dbf_ex,
-      version: "0.4.0",
+      version: "0.5.0",
       elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
       package: package(),
