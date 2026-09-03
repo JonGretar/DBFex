@@ -54,7 +54,20 @@ function Set-VfpValue {
         if ($Size -gt 0) {
             $parameter.Size = $Size
         }
-        $parameter.Value = if ($null -eq $Value) { [DBNull]::Value } else { $Value }
+        $parameter.Value =
+            if ($null -eq $Value) {
+                [DBNull]::Value
+            }
+            elseif ($Type -in @(
+                [System.Data.OleDb.OleDbType]::Binary,
+                [System.Data.OleDb.OleDbType]::VarBinary,
+                [System.Data.OleDb.OleDbType]::LongVarBinary
+            )) {
+                [byte[]] @($Value)
+            }
+            else {
+                $Value
+            }
         [void] $command.Parameters.Add($parameter)
         [void] $command.ExecuteNonQuery()
     }
