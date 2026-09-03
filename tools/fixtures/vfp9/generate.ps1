@@ -15,13 +15,18 @@ function ConvertTo-HexLiteral {
 function Invoke-VfpSql {
     param(
         [System.Data.OleDb.OleDbConnection] $Connection,
+        [string] $Label,
         [string] $Sql
     )
 
     $command = $Connection.CreateCommand()
     try {
+        Write-Host "VFPOLEDB: $Label"
         $command.CommandText = $Sql
         [void] $command.ExecuteNonQuery()
+    }
+    catch {
+        throw "VFPOLEDB failed during '$Label': $($_.Exception.Message)"
     }
     finally {
         $command.Dispose()
@@ -92,50 +97,66 @@ for ($index = 0; $index -lt $blobBinary.Length; $index++) {
 try {
     $connection.Open()
 
-    Invoke-VfpSql $connection @"
-CREATE TABLE vfp9_binary FREE CODEPAGE = 1252 (
-    ID I AUTOINC NEXTVALUE 1 STEP 1,
-    V_TEXT V(20) NULL,
-    Q_BYTES Q(20) NULL,
-    C_BYTES C(20) NOCPTRANS NULL,
-    M_BYTES M NOCPTRANS NULL,
-    W_BYTES W NULL,
-    B_VALUE B(4) NULL
-)
+    Invoke-VfpSql $connection "create baseline table" @"
+CREATE TABLE vfp9_binary FREE (ID I)
 "@
 
-    Invoke-VfpSql $connection @"
+    Invoke-VfpSql $connection "add nullable Varchar field" @"
+ALTER TABLE vfp9_binary ADD COLUMN V_TEXT V(20) NULL
+"@
+
+    Invoke-VfpSql $connection "add nullable Varbinary field" @"
+ALTER TABLE vfp9_binary ADD COLUMN Q_BYTES Q(20) NULL
+"@
+
+    Invoke-VfpSql $connection "add nullable binary Character field" @"
+ALTER TABLE vfp9_binary ADD COLUMN C_BYTES C(20) NULL NOCPTRANS
+"@
+
+    Invoke-VfpSql $connection "add nullable binary Memo field" @"
+ALTER TABLE vfp9_binary ADD COLUMN M_BYTES M NULL NOCPTRANS
+"@
+
+    Invoke-VfpSql $connection "add nullable Blob field" @"
+ALTER TABLE vfp9_binary ADD COLUMN W_BYTES W NULL
+"@
+
+    Invoke-VfpSql $connection "add nullable Double field" @"
+ALTER TABLE vfp9_binary ADD COLUMN B_VALUE B(4) NULL
+"@
+
+    Invoke-VfpSql $connection "insert short and multi-block values" @"
 INSERT INTO vfp9_binary
-    (V_TEXT, Q_BYTES, C_BYTES, M_BYTES, W_BYTES, B_VALUE)
+    (ID, V_TEXT, Q_BYTES, C_BYTES, M_BYTES, W_BYTES, B_VALUE)
 VALUES
-    ('text with tail ', $(ConvertTo-HexLiteral $shortBinary),
+    (1, 'text with tail ', $(ConvertTo-HexLiteral $shortBinary),
      $(ConvertTo-HexLiteral $binaryCharacter), $(ConvertTo-HexLiteral $memoBinary),
      $(ConvertTo-HexLiteral $blobBinary), -12345.625)
 "@
 
-    Invoke-VfpSql $connection @"
+    Invoke-VfpSql $connection "insert full-width and empty memo values" @"
 INSERT INTO vfp9_binary
-    (V_TEXT, Q_BYTES, C_BYTES, M_BYTES, W_BYTES, B_VALUE)
+    (ID, V_TEXT, Q_BYTES, C_BYTES, M_BYTES, W_BYTES, B_VALUE)
 VALUES
-    ('12345678901234567890', $(ConvertTo-HexLiteral $fullBinary),
+    (2, '12345678901234567890', $(ConvertTo-HexLiteral $fullBinary),
      $(ConvertTo-HexLiteral $fullBinary), 0h, 0h, 1.25)
 "@
 
-    Invoke-VfpSql $connection @"
+    Invoke-VfpSql $connection "insert explicit null values" @"
 INSERT INTO vfp9_binary
-    (V_TEXT, Q_BYTES, C_BYTES, M_BYTES, W_BYTES, B_VALUE)
+    (ID, V_TEXT, Q_BYTES, C_BYTES, M_BYTES, W_BYTES, B_VALUE)
 VALUES
-    (NULL, NULL, NULL, NULL, NULL, NULL)
+    (3, NULL, NULL, NULL, NULL, NULL, NULL)
 "@
 
-    Invoke-VfpSql $connection @"
+    Invoke-VfpSql $connection "insert empty values" @"
 INSERT INTO vfp9_binary
-    (V_TEXT, Q_BYTES, C_BYTES, M_BYTES, W_BYTES, B_VALUE)
+    (ID, V_TEXT, Q_BYTES, C_BYTES, M_BYTES, W_BYTES, B_VALUE)
 VALUES
-    ('', 0h, 0h, 0h, 0h, 0.0)
+    (4, '', 0h, 0h, 0h, 0h, 0.0)
 "@
 
-    Invoke-VfpSql $connection "DELETE FROM vfp9_binary WHERE ID = 2"
+    Invoke-VfpSql $connection "mark the second record deleted" "DELETE FROM vfp9_binary WHERE ID = 2"
 }
 finally {
     $connection.Close()

@@ -28,7 +28,7 @@ The generator asks VFPOLEDB to create a free table containing:
 - binary Memo (`M NOCPTRANS`);
 - Blob (`W`);
 - Double (`B`);
-- nullable fields and an autoincrementing Integer.
+- nullable fields and an Integer identifier.
 
 Records exercise short and full-width binaries, significant trailing bytes,
 empty values, explicit nulls, multi-block memo/blob payloads, and a deleted
@@ -41,7 +41,9 @@ record. The artifact also contains:
 
 Generation is deliberately allowed to fail if VFPOLEDB does not support one of
 these DDL or value operations. Such a failure is evidence about the provider's
-limits; do not weaken the script by hand-constructing the missing bytes.
+limits; do not weaken the script by hand-constructing the missing bytes. Each
+operation is labeled in the workflow log, and partially generated files are
+uploaded even when a later operation fails.
 
 ## Acceptance before adding fixtures
 

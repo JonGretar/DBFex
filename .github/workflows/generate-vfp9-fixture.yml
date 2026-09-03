@@ -64,9 +64,10 @@ jobs:
           }
 
       - name: Upload unreviewed fixture evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: vfp9-binary-fixture
           path: ${{ runner.temp }}/vfp9-fixture
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
