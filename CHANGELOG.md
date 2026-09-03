@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Preserve Visual FoxPro backlink paths alongside table, code-page, and field-flag metadata.
+- Preserve Visual FoxPro Picture and General FPT payloads as binaries without applying text decoding.
 
 ## [0.4.0] - 2026-09-01
 

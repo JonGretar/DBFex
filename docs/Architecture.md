@@ -217,7 +217,7 @@ Current profiles are:
 | ------- | ------------------- | -------------------- | -------------------- | ------- | ------------------------------------------- |
 | `0x02`  | FoxBase             | `:foxbase_8`         | `:foxbase_16`        | none    | character, unscaled numeric                 |
 | `0x03`  | dBASE III           | `:dbase_legacy_32`   | `:dbase_legacy_32`   | none    | character, numeric, float, logical, date    |
-| `0x30`  | Visual FoxPro       | `:visual_foxpro_32` | `:visual_foxpro_32` | optional FPT | legacy kinds, integer, timestamp, text memo |
+| `0x30`  | Visual FoxPro       | `:visual_foxpro_32` | `:visual_foxpro_32` | optional FPT | legacy kinds, integer, timestamp, text memo, binary Picture/General |
 | `0x83`  | dBASE III with memo | `:dbase_legacy_32`   | `:dbase_legacy_32`   | DBT III | legacy kinds plus text memo                 |
 | `0x8B`  | dBASE IV with memo  | `:dbase_legacy_32`   | `:dbase_legacy_32`   | DBT IV  | legacy kinds plus text memo                 |
 | `0xF5`  | FoxPro 2.x          | `:dbase_legacy_32`   | `:dbase_legacy_32`   | FPT     | legacy kinds plus text memo                 |
@@ -401,6 +401,7 @@ option into a decoder tag stored on the field. `decode/3` dispatches on that tag
 | Visual FoxPro currency         | Decode a signed little-endian 64-bit integer with fixed scale four as exact `Decimal`                    |
 | Visual FoxPro timestamp        | Decode little-endian Julian day and milliseconds into `NaiveDateTime`; all-zero is `nil`                 |
 | Visual FoxPro text memo        | Decode a little-endian 32-bit FPT pointer, then read and text-decode its declared payload                |
+| Visual FoxPro Picture/General  | Decode a little-endian 32-bit FPT pointer and return its type-0 binary payload unchanged                 |
 | Visual FoxPro Varchar          | Apply the stored byte length, then decode text without fixed-width trimming                              |
 | Visual FoxPro binary `V`       | Apply the stored byte length and return the resulting binary unchanged                                  |
 | Unsupported                    | Return `:unsupported_field_type` when the record is read                                                 |
@@ -490,14 +491,16 @@ blank memo pointers still requires a structurally valid companion.
 
 ### FPT
 
-`DBF.Memo.FPT` implements the evidenced FoxPro 2.x text-memo subset:
+`DBF.Memo.FPT` implements the evidenced FoxPro and Visual FoxPro memo layouts:
 
 - a 512-byte header;
 - big-endian next-block and block-size values;
 - header and file-size consistency checks;
 - big-endian block type and payload length values;
+- type `1` text payloads and type `0` binary Picture/General payloads;
 - exact declared-length payload reads spanning physical blocks;
-- rejection of out-of-range pointers, truncated payloads, and non-text blocks.
+- rejection of out-of-range pointers, truncated payloads, unsupported block
+  types, and field/block type mismatches.
 
 Memo payloads are not cached. Reading a memo field performs positional reads
 through the same resource owner as the table.
@@ -647,8 +650,6 @@ variation, not only by the possibility of a future implementation.
 The following are roadmap items, not current architecture:
 
 - broader Visual FoxPro field capabilities;
-- binary FPT memo blocks;
-- binary Picture/General values;
 - `Q` Varbinary and variable-width Blob values;
 - dBASE Level 5/7 and 48-byte Level 7 descriptors;
 - a generic source behavior for binary or IO-backed input;

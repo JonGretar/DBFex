@@ -96,6 +96,9 @@ See [`ADR 0003`](https://github.com/JonGretar/DBFex/blob/main/docs/adr/0003-comp
 - The partial FoxPro 2.x fixture stores its big-endian block size at FPT header
   offset 6, uses block type `1` for text, and excludes the 8-byte block header
   from each big-endian declared payload length.
+- Microsoft defines FPT block type `0` for binary Picture data and type `1` for
+  text. Visual FoxPro Picture (`P`) and General (`G`) fields use little-endian
+  32-bit FPT pointers; return type-0 payloads unchanged.
 - A memo may span several blocks. Bounds-check `block * block_size`, headers,
   and declared payload lengths before allocating or reading.
 - Memo, General, Picture, Blob, and binary-flagged Character/Memo values are not

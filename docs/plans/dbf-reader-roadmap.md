@@ -1,8 +1,8 @@
 # DBFex reader roadmap
 
 - Status: Active
-- Last updated: 2026-08-22
-- Progress: Phases -1 through 3 complete; Phase 4.1 in progress
+- Last updated: 2026-09-03
+- Progress: Phases -1 through 4.1 complete; Phase 4.2 in progress
 
 This is a living implementation roadmap. Durable architectural decisions are
 recorded separately under `docs/adr/`.
@@ -376,7 +376,7 @@ contains DBF/FPT fixtures for both.
 - [x] Support and test little-endian integer, currency, and timestamp values
       used by the accepted Visual FoxPro fixtures.
 - [x] Support text memos with decimal FoxPro or binary Visual FoxPro pointers.
-- [ ] Preserve binary picture/general data as binaries.
+- [x] Preserve binary picture/general data as binaries.
 - [x] Parse VFP table flags, code page, field flags, and the optional backlink
       area without treating them as dBASE IV metadata.
 

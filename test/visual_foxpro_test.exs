@@ -419,8 +419,8 @@ defmodule DBF.VisualFoxProTest do
 
     header =
       <<0x30, 124, 1, 1, 1::little-unsigned-integer-size(32),
-        header_length::little-unsigned-integer-size(16),
-        5::little-unsigned-integer-size(16), 0::size(128), 0x02, 0x03, 0::size(16)>>
+        header_length::little-unsigned-integer-size(16), 5::little-unsigned-integer-size(16),
+        0::size(128), 0x02, 0x03, 0::size(16)>>
 
     table =
       header <>
