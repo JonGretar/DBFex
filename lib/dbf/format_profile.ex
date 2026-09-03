@@ -40,10 +40,12 @@ defmodule DBF.FormatProfile do
           | :text_memo
           | :integer
           | :currency
+          | :double
           | :variable
           | :datetime
           | :text_memo_binary_pointer
           | :binary_memo_pointer
+          | :picture_memo_pointer
 
   @type t :: %__MODULE__{
           version: byte(),
@@ -66,10 +68,10 @@ defmodule DBF.FormatProfile do
 
   @memo_field_kinds Map.put(@legacy_field_kinds, "M", :text_memo)
   @visual_foxpro_field_kinds Map.merge(@legacy_field_kinds, %{
-                               "G" => :binary_memo_pointer,
+                               "B" => :double,
                                "I" => :integer,
                                "M" => :text_memo_binary_pointer,
-                               "P" => :binary_memo_pointer,
+                               "P" => :picture_memo_pointer,
                                "T" => :datetime
                              })
   @visual_foxpro_autoincrement_field_kinds Map.put(
@@ -77,10 +79,13 @@ defmodule DBF.FormatProfile do
                                              "Y",
                                              :currency
                                            )
-  @visual_foxpro_variable_field_kinds Map.put(
+  @visual_foxpro_variable_field_kinds Map.merge(
                                         @visual_foxpro_autoincrement_field_kinds,
-                                        "V",
-                                        :variable
+                                        %{
+                                          "Q" => :variable,
+                                          "V" => :variable,
+                                          "W" => :binary_memo_pointer
+                                        }
                                       )
 
   @profiles %{

@@ -278,7 +278,16 @@ defmodule DBF.Schema do
          fields,
          %FormatProfile{field_descriptor_layout: :visual_foxpro_32}
        ) do
-    expected_widths = %{"G" => 4, "I" => 4, "M" => 4, "P" => 4, "T" => 8, "Y" => 8}
+    expected_widths = %{
+      "B" => 8,
+      "G" => 4,
+      "I" => 4,
+      "M" => 4,
+      "P" => 4,
+      "T" => 8,
+      "W" => 4,
+      "Y" => 8
+    }
 
     case Enum.find(fields, &invalid_field_width?(&1, expected_widths)) do
       nil ->
@@ -363,7 +372,8 @@ defmodule DBF.Schema do
          %FormatProfile{field_descriptor_layout: :visual_foxpro_32}
        ) do
     case Enum.find(fields, fn field ->
-           field.flags != 0x00 and not (field.flags == 0x04 and field.type in ["I", "T"])
+           field.flags != 0x00 and
+             not (field.flags == 0x04 and field.type in ["B", "C", "I", "M", "P", "T"])
          end) do
       nil ->
         :ok
@@ -406,12 +416,12 @@ defmodule DBF.Schema do
     do: flags in [0x00, 0x02, 0x04, 0x06, 0x0C, 0x0E]
 
   defp valid_nullable_field_flags?(%{type: type, flags: flags})
-       when type in ["M", "T", "Y"],
+       when type in ["B", "C", "M", "P", "T", "W", "Y"],
        do: flags in [0x00, 0x02, 0x04, 0x06]
 
   defp valid_nullable_field_flags?(%{flags: flags}), do: flags in [0x00, 0x02]
 
-  defp valid_variable_field_flags?(%{type: "V", flags: flags}),
+  defp valid_variable_field_flags?(%{type: type, flags: flags}) when type in ["Q", "V"],
     do: flags in [0x00, 0x02, 0x04, 0x06]
 
   defp valid_variable_field_flags?(field), do: valid_nullable_field_flags?(field)
@@ -497,7 +507,8 @@ defmodule DBF.Schema do
 
   defp compile_nullable_field(field, bit), do: {field, bit}
 
-  defp compile_variable_field(%{type: "V", flags: flags} = field, bit) do
+  defp compile_variable_field(%{type: type, flags: flags} = field, bit)
+       when type in ["Q", "V"] do
     field = %Field{field | variable_length_bit: bit}
 
     if band(flags, 0x02) == 0x02 do

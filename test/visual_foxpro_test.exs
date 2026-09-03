@@ -54,14 +54,12 @@ defmodule DBF.VisualFoxProTest do
     end)
   end
 
-  test "preserves Visual FoxPro Picture and General memo payloads as binaries" do
+  test "preserves Visual FoxPro Picture memo payloads as binaries" do
     payload = <<0x00, 0xFF, 0x80, "picture data">>
 
-    for field_type <- ["P", "G"] do
-      with_visual_foxpro_memo(field_type, payload, fn db ->
-        assert {:record, %{"VALUE" => ^payload}} = DBF.get(db, 0)
-      end)
-    end
+    with_visual_foxpro_memo("P", payload, fn db ->
+      assert {:record, %{"VALUE" => ^payload}} = DBF.get(db, 0)
+    end)
   end
 
   test "rejects a text FPT block referenced by a binary memo field" do
@@ -207,6 +205,73 @@ defmodule DBF.VisualFoxProTest do
                assert Enum.count(db) == 1
                :ok
              end)
+  end
+
+  test "decodes VFP 9 binary and variable fields from a producer-generated fixture" do
+    memo = for index <- 0..639, into: <<>>, do: <<rem(index, 251)>>
+    blob = for index <- 0..699, into: <<>>, do: <<255 - rem(index, 251)>>
+
+    DBF.with_open("test/dbf_files/vfp9_binary.dbf", fn db ->
+      assert db.version == 0x32
+      assert db.memo_file.block_size == 64
+
+      assert Enum.map(db.fields, &{&1.name, &1.decoder, &1.variable_length_bit, &1.null_bit}) ==
+               [
+                 {"ID", {:binary, :integer}, nil, 0},
+                 {"V_TEXT", {:text, :varchar}, 1, 2},
+                 {"Q_BYTES", {:binary, :varbinary}, 3, 4},
+                 {"C_BYTES", {:binary, :binary_character}, nil, 5},
+                 {"M_BYTES", {:binary, :binary_memo}, nil, 6},
+                 {"W_BYTES", {:binary, :binary_memo}, nil, 7},
+                 {"B_VALUE", {:binary, :double}, nil, 8}
+               ]
+
+      assert {:record,
+              %{
+                "ID" => 1,
+                "V_TEXT" => "text with tail ",
+                "Q_BYTES" => <<0x00, 0x20, 0x80, 0xFF, 0x41>>,
+                "C_BYTES" => <<0x00, 0xFF, 0x20, 0x80, 0x42>> <> padding,
+                "M_BYTES" => ^memo,
+                "W_BYTES" => ^blob,
+                "B_VALUE" => -12_345.625
+              }} = DBF.get(db, 0)
+
+      assert padding == :binary.copy(" ", 15)
+
+      assert {:deleted_record,
+              %{
+                "ID" => 2,
+                "V_TEXT" => "12345678901234567890",
+                "Q_BYTES" => sequence,
+                "M_BYTES" => nil,
+                "W_BYTES" => nil,
+                "B_VALUE" => 1.25
+              }} = DBF.get(db, 1)
+
+      assert sequence == :binary.list_to_bin(Enum.to_list(0..19))
+
+      assert {:record,
+              %{
+                "ID" => 3,
+                "V_TEXT" => nil,
+                "Q_BYTES" => nil,
+                "C_BYTES" => nil,
+                "M_BYTES" => nil,
+                "W_BYTES" => nil,
+                "B_VALUE" => nil
+              }} = DBF.get(db, 2)
+
+      assert {:record, empty_record} = DBF.get(db, 3)
+      assert empty_record["ID"] == 4
+      assert empty_record["V_TEXT"] == ""
+      assert empty_record["Q_BYTES"] == <<>>
+      assert empty_record["M_BYTES"] == nil
+      assert empty_record["W_BYTES"] == nil
+      assert empty_record["B_VALUE"] == 0.0
+
+      assert empty_record["C_BYTES"] == :binary.copy(" ", 20)
+    end)
   end
 
   test "decodes variable-width text after applying its stored byte length" do

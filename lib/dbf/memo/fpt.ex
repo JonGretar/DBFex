@@ -61,8 +61,8 @@ defmodule DBF.Memo.FPT do
          _block_number,
          _offset
        )
-       when (payload_type == :text and block_type == @text_block_type) or
-              (payload_type == :binary and block_type == @binary_block_type) do
+       when (payload_type in [:text, :binary] and block_type == @text_block_type) or
+              (payload_type == :picture and block_type == @binary_block_type) do
     {:ok, payload_length}
   end
 
@@ -126,7 +126,8 @@ defmodule DBF.Memo.FPT do
     end
   end
 
-  defp block_type(:binary), do: @binary_block_type
+  defp block_type(:picture), do: @binary_block_type
+  defp block_type(:binary), do: @text_block_type
   defp block_type(:text), do: @text_block_type
 
   defp validate_header(next_block, block_size, size)

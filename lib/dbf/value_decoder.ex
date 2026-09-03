@@ -13,6 +13,8 @@ defmodule DBF.ValueDecoder do
   def compile(%Field{type: type} = field, %FormatProfile{field_kinds: field_kinds}, options) do
     case Map.fetch(field_kinds, type) do
       {:ok, :variable} -> compile_variable(field)
+      {:ok, :character} -> compile_character(field)
+      {:ok, :text_memo_binary_pointer} -> compile_memo(field)
       {:ok, kind} -> compile_kind(kind, options)
       :error -> {:unsupported, type}
     end
@@ -23,16 +25,27 @@ defmodule DBF.ValueDecoder do
 
   defp compile_variable(%Field{}), do: {:text, :varchar}
 
-  defp compile_kind(:character, _options), do: {:text, :character}
+  defp compile_character(%Field{flags: flags})
+       when is_integer(flags) and band(flags, 0x04) == 0x04,
+       do: {:binary, :binary_character}
+
+  defp compile_character(%Field{}), do: {:text, :character}
+
+  defp compile_memo(%Field{flags: flags}) when band(flags, 0x04) == 0x04,
+    do: {:binary, :binary_memo}
+
+  defp compile_memo(%Field{}), do: {:binary, :text_memo}
+
   defp compile_kind(:float, _options), do: {:text, :float}
   defp compile_kind(:logical, _options), do: {:text, :logical}
   defp compile_kind(:date, _options), do: {:text, :date}
   defp compile_kind(:text_memo, _options), do: {:text, :memo}
   defp compile_kind(:integer, _options), do: {:binary, :integer}
   defp compile_kind(:currency, _options), do: {:binary, :currency}
+  defp compile_kind(:double, _options), do: {:binary, :double}
   defp compile_kind(:datetime, _options), do: {:binary, :datetime}
-  defp compile_kind(:text_memo_binary_pointer, _options), do: {:binary, :text_memo}
   defp compile_kind(:binary_memo_pointer, _options), do: {:binary, :binary_memo}
+  defp compile_kind(:picture_memo_pointer, _options), do: {:binary, :picture_memo}
 
   defp compile_kind(:numeric, options) do
     {:text, {:numeric, Keyword.get(options, :numeric, :float)}}
@@ -55,6 +68,7 @@ defmodule DBF.ValueDecoder do
   end
 
   def decode(_db, %{decoder: {:binary, :varbinary}}, value), do: value
+  def decode(_db, %{decoder: {:binary, :binary_character}}, value), do: value
 
   def decode(_db, %{decoder: {:text, :float}}, value) do
     trimmed = TextDecoder.trim(value, :both)
@@ -153,6 +167,14 @@ defmodule DBF.ValueDecoder do
   end
 
   def decode(
+        db,
+        %{decoder: {:binary, :picture_memo}},
+        <<block::little-unsigned-integer-size(32)>>
+      ) do
+    if block == 0, do: nil, else: read_picture_memo(db, block)
+  end
+
+  def decode(
         _db,
         %{decoder: {:binary, :integer}},
         <<integer::little-signed-integer-size(32)>>
@@ -167,6 +189,9 @@ defmodule DBF.ValueDecoder do
       ) do
     Decimal.new("#{integer}E-4")
   end
+
+  def decode(_db, %{decoder: {:binary, :double}}, <<double::little-float-size(64)>>),
+    do: double
 
   def decode(_db, %{decoder: {:binary, :datetime}}, <<0::size(64)>>), do: nil
 
@@ -229,6 +254,10 @@ defmodule DBF.ValueDecoder do
 
   defp read_binary_memo(db, block) do
     Memo.get_block(db.resource, db.memo_file, block, :binary)
+  end
+
+  defp read_picture_memo(db, block) do
+    Memo.get_block(db.resource, db.memo_file, block, :picture)
   end
 
   defp invalid_value(message) do

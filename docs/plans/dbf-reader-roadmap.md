@@ -392,37 +392,42 @@ Next target `0x31` and `0x32`, for which fixtures also already exist.
       next-value/step metadata.
 - [x] Decode the evidenced textual and binary `V` fields according to descriptor
       flags and per-record length/null metadata.
-- [ ] Add `Q` Varbinary and Blob only when fixtures establish their inline or
+- [x] Add `Q` Varbinary and Blob only when fixtures establish their inline or
       memo-backed value semantics.
 - [x] Implement the shared `0x31`/`0x32` record bitmap and distinguish null from
       blank before applying stored lengths or value decoding.
 
 #### Visual FoxPro completion evidence
 
-No referenced example project currently supplies producer-backed fixtures for
-VFP9 Varbinary (`Q`), Blob (`W`), binary-flagged Character/Memo, or General/OLE
-objects. `dbfread` includes only a `0x30` textual Memo fixture; its implementation
-recognizes FPT block type `0` as Picture, `1` as Text, and `2` as Object, but that
-code is secondary evidence rather than a fixture oracle.
+The checked-in VFPOLEDB-generated fixture now supplies producer-backed evidence
+for VFP9 Varbinary (`Q`), Blob (`W`), binary-flagged Character/Memo, and Double
+(`B`). No referenced example project currently supplies a producer-backed
+General/OLE object. `dbfread` includes only a `0x30` textual Memo fixture; its
+implementation recognizes FPT block type `0` as Picture, `1` as Text, and `2` as
+Object, but that code is secondary evidence rather than a fixture oracle.
 
 Before claiming complete Visual FoxPro support:
 
 - [x] Add a manually triggered Windows workflow that verifies the archived
       Microsoft VFPOLEDB installer, generates deterministic `Q`/`W`/binary-field
       evidence, and uploads it for review without committing it automatically.
-- [ ] Obtain a redistributable VFP9-produced `0x42` fixture, or arrange for a
-      VFP9 user/project maintainer to run a checked-in deterministic generator.
-- [ ] Cover `Q`, `W`, binary `C`, binary `M`, Double (`B`), Picture (`P`), and
-      General (`G`), including empty, null, short, full-width, trailing-byte, and
-      multi-block values where applicable.
-- [ ] Retain the generator, exact inserted values, producer/version, provenance,
+- [x] Obtain a redistributable VFP9-produced fixture by running the checked-in
+      deterministic generator. The producer emitted `0x32`, not `0x42`.
+- [x] Cover `Q`, `W`, binary `C`, binary `M`, and Double (`B`), including empty,
+      null, short, full-width, trailing-byte, and multi-block values where
+      applicable.
+- [x] Cover Picture (`P`) type-`0` payloads. General (`G`) type-`2` objects remain
+      blocked on a producer capable of creating a meaningful OLE value.
+- [x] Retain the generator, exact inserted values, producer/version, provenance,
       redistribution permission, and file hashes with the fixture.
 - [x] Resolve the primary documentation's `0x42` signature versus the existing
       independently identified `0x32` fixture. VFPOLEDB 9 SP2 emitted `0x32`
       after successfully adding `V`, `Q`, and `W`; retain `0x32` and do not add
       an unevidenced `0x42` alias.
-- [ ] Use mature readers as cross-checks, not as the normative source of expected
-      values or as substitutes for producer evidence.
+- [x] Use mature readers as cross-checks, not as the normative source of expected
+      values or as substitutes for producer evidence. `dbfread` 2.0.7 rejects
+      the fixture at the `Q` descriptor, confirming it cannot serve as an oracle
+      for these VFP9 field types.
 
 #### 4.3 dBASE Level 5 and Level 7
 

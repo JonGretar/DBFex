@@ -45,10 +45,10 @@ evidence; never infer complete support from the version byte alone.
 - `_NullFlags` is a physical system field, not caller data. Assign bits to
   nullable fields in descriptor order and consult the bitmap before decoding
   the corresponding field bytes.
-- The `0x32` fixture uses the same system bitmap for variable-width metadata.
-  Allocate one stored-length bit for each `V` field, followed by its null bit
-  when nullable. If the length bit is set, the physical field's final byte is
-  the actual length; if clear, that final byte remains value data.
+- The `0x32` fixtures use the same system bitmap for variable-width metadata.
+  Allocate one stored-length bit for each `V` or `Q` field, followed by its null
+  bit when nullable. If the length bit is set, the physical field's final byte
+  is the actual length; if clear, that final byte remains value data.
 - Current Microsoft documentation lists `0x42` for Varchar/Varbinary/Blob tables,
   while the checked-in independently identified fixture uses `0x32`. Support
   only the evidenced `0x32` profile rather than aliasing the undocumented byte.
@@ -98,11 +98,15 @@ See [`ADR 0003`](https://github.com/JonGretar/DBFex/blob/main/docs/adr/0003-comp
 - The partial FoxPro 2.x fixture stores its big-endian block size at FPT header
   offset 6, uses block type `1` for text, and excludes the 8-byte block header
   from each big-endian declared payload length.
-- Microsoft defines FPT block type `0` for binary Picture data and type `1` for
-  text. `dbfread` additionally recognizes type `2` as an Object block. The
-  current synthetic Picture/General regression proves only type-0 payload
-  preservation; do not claim complete General/OLE support until a producer
-  fixture establishes its type-2 behavior.
+- Microsoft defines FPT block type `0` for Picture data and type `1` for text.
+  The VFP 9 SP2 producer fixture stores both binary Memo (`M NOCPTRANS`) and Blob
+  (`W`) payloads in type-`1` blocks. Use the DBF field descriptor to decide
+  whether type-`1` bytes are decoded as text or preserved as binary; do not
+  equate an FPT storage type with final value semantics.
+- `dbfread` additionally recognizes FPT type `2` as an Object block. The current
+  Picture regression proves type-`0` payload preservation; do not claim
+  General/OLE support until a producer fixture establishes its type-`2`
+  behavior.
 - A memo may span several blocks. Bounds-check `block * block_size`, headers,
   and declared payload lengths before allocating or reading.
 - Memo, General, Picture, Blob, and binary-flagged Character/Memo values are not

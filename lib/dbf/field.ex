@@ -32,7 +32,15 @@ defmodule DBF.Field do
           | :memo
           | :date
   @type binary_decoder ::
-          :integer | :currency | :datetime | :text_memo | :binary_memo | :varbinary
+          :integer
+          | :currency
+          | :double
+          | :datetime
+          | :text_memo
+          | :binary_memo
+          | :picture_memo
+          | :binary_character
+          | :varbinary
   @type decoder ::
           {:text, text_decoder()} | {:binary, binary_decoder()} | {:unsupported, binary()}
 

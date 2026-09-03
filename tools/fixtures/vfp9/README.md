@@ -79,6 +79,27 @@ established:
 - a two-byte `_NullFlags` system field for the seven preceding fields; and
 - a 64-byte FPT block size.
 
-The generator now uses typed OLE DB parameters instead of embedding binary
-literals in command text. Keep subsequent run observations here until an
-accepted fixture and manifest supersede this log.
+Run `33749640855` completed with Microsoft Visual FoxPro
+`9.0.00.5815`. Its accepted project-generated fixture is checked in as
+`test/dbf_files/vfp9_binary.dbf` and `vfp9_binary.fpt`:
+
+- DBF SHA-256:
+  `97bbc094056550d68c639e754122b62fc58db00e404ad9a45ea2341860b57c40`;
+- FPT SHA-256:
+  `562cd2d1d1296ba7e3437e81540c58eeca6c1fb38866565cfdcc67b985c9cf36`;
+- version `0x32`, four records, seven visible fields, and a two-byte record
+  bitmap;
+- stored-length bits for both `V` and `Q`, immediately followed by each field's
+  null bit;
+- little-endian binary pointers for `M` and `W`; and
+- FPT block type `1` for both the binary Memo and Blob payloads.
+
+The generated files contain only the deterministic project-supplied schema and
+values and are redistributed under the repository license. Backup `.BAK`/`.TBK`
+files and diagnostic JSON remain workflow artifacts rather than test fixtures.
+The exact input formulas remain in `generate.ps1`.
+
+`dbfread` 2.0.7 was attempted as an independent cross-check and rejects the
+schema at the `Q` descriptor (`Unknown field type: 'Q'`). This confirms the
+reader is not an oracle for these VFP9-only fields; the normative values remain
+the checked-in generator inputs and Microsoft producer output.
