@@ -43,6 +43,7 @@ defmodule DBF.FormatProfile do
           | :variable
           | :datetime
           | :text_memo_binary_pointer
+          | :binary_memo_pointer
 
   @type t :: %__MODULE__{
           version: byte(),
@@ -65,8 +66,10 @@ defmodule DBF.FormatProfile do
 
   @memo_field_kinds Map.put(@legacy_field_kinds, "M", :text_memo)
   @visual_foxpro_field_kinds Map.merge(@legacy_field_kinds, %{
+                               "G" => :binary_memo_pointer,
                                "I" => :integer,
                                "M" => :text_memo_binary_pointer,
+                               "P" => :binary_memo_pointer,
                                "T" => :datetime
                              })
   @visual_foxpro_autoincrement_field_kinds Map.put(

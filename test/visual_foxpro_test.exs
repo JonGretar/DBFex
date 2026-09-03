@@ -41,6 +41,41 @@ defmodule DBF.VisualFoxProTest do
     end)
   end
 
+  test "preserves Visual FoxPro table, code-page, field, and backlink metadata" do
+    DBF.with_open("test/dbf_files/foxprodb/calls.dbf", fn db ->
+      assert db.table_flags == 0x03
+      assert db.language_driver == 0x03
+      assert db.schema.backlink == "foxpro-db-test.dbc"
+      assert Enum.find(db.fields, &(&1.name == "CALL_ID")).flags == 0x04
+    end)
+
+    DBF.with_open("test/dbf_files/dbase_30.dbf", fn db ->
+      assert db.schema.backlink == nil
+    end)
+  end
+
+  test "preserves Visual FoxPro Picture and General memo payloads as binaries" do
+    payload = <<0x00, 0xFF, 0x80, "picture data">>
+
+    for field_type <- ["P", "G"] do
+      with_visual_foxpro_memo(field_type, payload, fn db ->
+        assert {:record, %{"VALUE" => ^payload}} = DBF.get(db, 0)
+      end)
+    end
+  end
+
+  test "rejects a text FPT block referenced by a binary memo field" do
+    error =
+      assert_raise DBF.DatabaseError, fn ->
+        with_visual_foxpro_memo("P", "not binary", fn _db -> :ok end, block_type: 1)
+      end
+
+    assert error.reason == :invalid_memo
+    assert error.cause == :unsupported_memo_block_type
+    assert error.context.block_type == 1
+    assert error.context.expected_block_type == 0
+  end
+
   test "decodes Visual FoxPro autoincrement tables and exact currency values" do
     assert :ok =
              DBF.with_open("test/dbf_files/dbase_31.dbf", fn db ->
@@ -352,5 +387,61 @@ defmodule DBF.VisualFoxProTest do
   defp replace_byte(binary, offset, replacement) do
     <<prefix::binary-size(offset), _byte, rest::binary>> = binary
     prefix <> <<replacement>> <> rest
+  end
+
+  defp with_visual_foxpro_memo(field_type, payload, fun, options \\ []) do
+    block_size = 64
+    block_number = 8
+    block_type = Keyword.get(options, :block_type, 0)
+    next_block = block_number + div(byte_size(payload) + 8 + block_size - 1, block_size)
+
+    memo_header =
+      <<next_block::big-unsigned-integer-size(32), 0::size(16),
+        block_size::big-unsigned-integer-size(16)>> <> :binary.copy(<<0>>, 504)
+
+    memo_block =
+      <<block_type::big-unsigned-integer-size(32),
+        byte_size(payload)::big-unsigned-integer-size(32)>> <> payload
+
+    memo =
+      (memo_header <> memo_block)
+      |> then(&(&1 <> :binary.copy(<<0>>, next_block * block_size - byte_size(&1))))
+
+    field_name = "VALUE" <> :binary.copy(<<0>>, 6)
+
+    descriptor =
+      field_name <>
+        field_type <>
+        <<0::little-unsigned-integer-size(32), 4, 0, 0>> <>
+        :binary.copy(<<0>>, 13)
+
+    header_length = 32 + 32 + 1 + 263
+
+    header =
+      <<0x30, 124, 1, 1, 1::little-unsigned-integer-size(32),
+        header_length::little-unsigned-integer-size(16),
+        5::little-unsigned-integer-size(16), 0::size(128), 0x02, 0x03, 0::size(16)>>
+
+    table =
+      header <>
+        descriptor <>
+        <<0x0D>> <>
+        :binary.copy(<<0>>, 263) <>
+        <<" ", block_number::little-unsigned-integer-size(32)>>
+
+    path = TestFixture.write_temp!(table, "binary-memo.dbf")
+    File.write!(Path.rootname(path) <> ".fpt", memo)
+
+    try do
+      db = DBF.open!(path)
+
+      try do
+        fun.(db)
+      after
+        DBF.close(db)
+      end
+    after
+      TestFixture.cleanup(path)
+    end
   end
 end

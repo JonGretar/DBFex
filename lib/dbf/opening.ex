@@ -147,7 +147,11 @@ defmodule DBF.Opening do
   end
 
   defp find_memo_probe(resource, header, schema) do
-    memo_fields = Enum.filter(schema.fields, &(&1.type == "M"))
+    memo_fields =
+      Enum.filter(schema.fields, fn field ->
+        field.decoder in [{:text, :memo}, {:binary, :text_memo}, {:binary, :binary_memo}]
+      end)
+
     find_memo_probe(resource, header, memo_fields, 0)
   end
 
@@ -185,7 +189,16 @@ defmodule DBF.Opening do
          %{decoder: {:binary, :text_memo}},
          _offset
        ) do
-    {:ok, if(block == 0, do: nil, else: block)}
+    {:ok, if(block == 0, do: nil, else: {block, :text})}
+  end
+
+  defp parse_memo_probe(
+         <<block::little-unsigned-integer-size(32)>>,
+         _record_number,
+         %{decoder: {:binary, :binary_memo}},
+         _offset
+       ) do
+    {:ok, if(block == 0, do: nil, else: {block, :binary})}
   end
 
   defp parse_memo_probe(raw_pointer, record_number, field, offset) do

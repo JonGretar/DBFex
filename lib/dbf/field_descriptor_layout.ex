@@ -13,11 +13,24 @@ defmodule DBF.FieldDescriptorLayout do
   def size(:dbase_legacy_32), do: 32
   def size(:visual_foxpro_32), do: 32
 
-  @spec validate_tail(t(), binary()) :: :ok | {:error, atom(), map()}
-  def validate_tail(:visual_foxpro_32, backlink) when byte_size(backlink) == 263, do: :ok
-  def validate_tail(layout, _tail) when layout in [:foxbase_16, :dbase_legacy_32], do: :ok
+  @spec parse_tail(t(), binary()) ::
+          {:ok, %{backlink: binary() | nil}} | {:error, atom(), map()}
+  def parse_tail(:visual_foxpro_32, backlink) when byte_size(backlink) == 263 do
+    backlink =
+      case :binary.match(backlink, <<0>>) do
+        {0, 1} -> nil
+        {length, 1} -> binary_part(backlink, 0, length)
+        :nomatch -> backlink
+      end
 
-  def validate_tail(:visual_foxpro_32, backlink) do
+    {:ok, %{backlink: backlink}}
+  end
+
+  def parse_tail(layout, _tail) when layout in [:foxbase_16, :dbase_legacy_32] do
+    {:ok, %{backlink: nil}}
+  end
+
+  def parse_tail(:visual_foxpro_32, backlink) do
     {:error, :invalid_descriptor_tail, %{expected_bytes: 263, actual_bytes: byte_size(backlink)}}
   end
 end

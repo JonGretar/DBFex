@@ -11,14 +11,15 @@ defmodule DBF.Schema do
   alias DBF.TextDecoder
   alias DBF.ValueDecoder
 
-  @enforce_keys [:fields, :record_length, :text_decoder]
-  defstruct [:fields, :record_length, :text_decoder, :record_bitmap]
+  @enforce_keys [:fields, :record_length, :text_decoder, :backlink]
+  defstruct [:fields, :record_length, :text_decoder, :record_bitmap, :backlink]
 
   @type t :: %__MODULE__{
           fields: [Field.t()],
           record_length: pos_integer(),
           text_decoder: TextDecoder.t(),
-          record_bitmap: %{record_offset: pos_integer(), length: pos_integer()} | nil
+          record_bitmap: %{record_offset: pos_integer(), length: pos_integer()} | nil,
+          backlink: String.t() | binary() | nil
         }
 
   @spec parse(binary(), FormatProfile.t(), Header.t(), DBF.options()) ::
@@ -31,7 +32,7 @@ defmodule DBF.Schema do
 
     with {:ok, text_decoder} <- TextDecoder.compile(header.language_driver, options),
          :ok <- validate_schema_size(binary, header, descriptor_offset),
-         {:ok, fields} <-
+         {:ok, fields, descriptor_metadata} <-
            parse_descriptors(
              binary,
              profile.field_descriptor_layout,
@@ -45,7 +46,8 @@ defmodule DBF.Schema do
          fields: fields,
          record_length: header.record_length,
          text_decoder: text_decoder,
-         record_bitmap: record_bitmap
+         record_bitmap: record_bitmap,
+         backlink: descriptor_metadata.backlink
        }}
     end
   end
@@ -88,13 +90,15 @@ defmodule DBF.Schema do
   defp parse_descriptors(
          <<0x0D, tail::binary>>,
          layout,
-         _text_decoder,
+         text_decoder,
          offset,
          fields
        ) do
-    case FieldDescriptorLayout.validate_tail(layout, tail) do
-      :ok ->
-        {:ok, Enum.reverse(fields)}
+    case FieldDescriptorLayout.parse_tail(layout, tail) do
+      {:ok, %{backlink: backlink}} ->
+        with {:ok, backlink} <- decode_backlink(backlink, text_decoder, offset + 1) do
+          {:ok, Enum.reverse(fields), %{backlink: backlink}}
+        end
 
       {:error, cause, context} ->
         {:error, schema_error(cause, Map.put(context, :offset, offset + 1))}
@@ -274,7 +278,7 @@ defmodule DBF.Schema do
          fields,
          %FormatProfile{field_descriptor_layout: :visual_foxpro_32}
        ) do
-    expected_widths = %{"I" => 4, "M" => 4, "T" => 8, "Y" => 8}
+    expected_widths = %{"G" => 4, "I" => 4, "M" => 4, "P" => 4, "T" => 8, "Y" => 8}
 
     case Enum.find(fields, &invalid_field_width?(&1, expected_widths)) do
       nil ->
@@ -545,6 +549,18 @@ defmodule DBF.Schema do
 
       {:error, %Error{} = error} ->
         {:error, Error.add_context(error, %{offset: descriptor_offset, source: :field_name})}
+    end
+  end
+
+  defp decode_backlink(nil, _text_decoder, _offset), do: {:ok, nil}
+
+  defp decode_backlink(raw_backlink, text_decoder, offset) do
+    case TextDecoder.decode(text_decoder, raw_backlink, :none) do
+      {:ok, decoded} ->
+        {:ok, decoded}
+
+      {:error, %Error{} = error} ->
+        {:error, Error.add_context(error, %{offset: offset, source: :backlink})}
     end
   end
 

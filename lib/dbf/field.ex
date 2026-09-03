@@ -31,7 +31,8 @@ defmodule DBF.Field do
           | :varchar
           | :memo
           | :date
-  @type binary_decoder :: :integer | :currency | :datetime | :text_memo | :varbinary
+  @type binary_decoder ::
+          :integer | :currency | :datetime | :text_memo | :binary_memo | :varbinary
   @type decoder ::
           {:text, text_decoder()} | {:binary, binary_decoder()} | {:unsupported, binary()}
 

@@ -32,6 +32,7 @@ defmodule DBF.ValueDecoder do
   defp compile_kind(:currency, _options), do: {:binary, :currency}
   defp compile_kind(:datetime, _options), do: {:binary, :datetime}
   defp compile_kind(:text_memo_binary_pointer, _options), do: {:binary, :text_memo}
+  defp compile_kind(:binary_memo_pointer, _options), do: {:binary, :binary_memo}
 
   defp compile_kind(:numeric, options) do
     {:text, {:numeric, Keyword.get(options, :numeric, :float)}}
@@ -144,6 +145,14 @@ defmodule DBF.ValueDecoder do
   end
 
   def decode(
+        db,
+        %{decoder: {:binary, :binary_memo}},
+        <<block::little-unsigned-integer-size(32)>>
+      ) do
+    if block == 0, do: nil, else: read_binary_memo(db, block)
+  end
+
+  def decode(
         _db,
         %{decoder: {:binary, :integer}},
         <<integer::little-signed-integer-size(32)>>
@@ -212,10 +221,14 @@ defmodule DBF.ValueDecoder do
   end
 
   defp read_text_memo(db, block) do
-    case Memo.get_block(db.resource, db.memo_file, block) do
+    case Memo.get_block(db.resource, db.memo_file, block, :text) do
       {:error, %Error{}} = error -> error
       memo -> decode_text(db.text_decoder, memo, :none)
     end
+  end
+
+  defp read_binary_memo(db, block) do
+    Memo.get_block(db.resource, db.memo_file, block, :binary)
   end
 
   defp invalid_value(message) do

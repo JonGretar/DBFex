@@ -377,7 +377,7 @@ contains DBF/FPT fixtures for both.
       used by the accepted Visual FoxPro fixtures.
 - [x] Support text memos with decimal FoxPro or binary Visual FoxPro pointers.
 - [ ] Preserve binary picture/general data as binaries.
-- [ ] Parse VFP table flags, code page, field flags, and the optional backlink
+- [x] Parse VFP table flags, code page, field flags, and the optional backlink
       area without treating them as dBASE IV metadata.
 
 #### 4.2 Visual FoxPro autoincrement and variable-width records
