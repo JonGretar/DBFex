@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Preserve Visual FoxPro backlink paths alongside table, code-page, and field-flag metadata.
-- Preserve Visual FoxPro type-0 Picture FPT payloads as binaries without applying text decoding; General/OLE object blocks remain pending producer evidence.
+- Preserve Visual FoxPro type-0 Picture and type-2 General/OLE FPT payloads as opaque binaries without applying text decoding.
 - Decode producer-verified Visual FoxPro 9 Varbinary, binary Character/Memo, Blob, and Double fields, including variable lengths, nulls, and multi-block binary payloads.
 
 ## [0.4.0] - 2026-09-01

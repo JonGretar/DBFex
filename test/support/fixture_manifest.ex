@@ -170,6 +170,35 @@ defmodule DBF.FixtureManifest do
       ]
     },
     %{
+      id: :visual_foxpro_general,
+      files: %{
+        table: "test/dbf_files/vfp_general.dbf",
+        memo: "test/dbf_files/vfp_general.fpt",
+        license: ["test/dbf_files/vfp_general_LICENSE.txt"]
+      },
+      profile: %{
+        format: :visual_foxpro,
+        version: 0x30,
+        memo: :fpt,
+        encoding: {:ldid, 0x03}
+      },
+      provenance: %{
+        producer: "Visual FoxPro (exact version undocumented)",
+        origin: "arquimedescrivelari/foxpages@834ac3b0c2c955336394e1c0f44f4c5ac7d21bb7",
+        redistribution: :mit
+      },
+      support: :verified,
+      exercise: {:open, %{records: 11, fields: 11}},
+      expected_values: {:payload_sha256, [record: 0, fields: ["GRAF01", "GRAF02"]]},
+      normative_sources: [:visual_foxpro, :visual_foxpro_fpt],
+      notes: [
+        "Original grafics.dbf/fpt pair retained unchanged with its MIT license.",
+        "DBF SHA-256 ca28796a3fb61aadbb5b4b6acd966e9e5845bf97fdd987766c17711984edfd12.",
+        "FPT SHA-256 608925cb4593a0921f0639c28fd1c8f556b2ffd5a58303ce29c6aa4844fa5168.",
+        "Every populated General pointer references an FPT type-2 object block."
+      ]
+    },
+    %{
       id: :dbase_iii_memo,
       files: %{
         table: "test/dbf_files/dbase_83.dbf",

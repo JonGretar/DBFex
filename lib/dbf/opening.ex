@@ -153,7 +153,8 @@ defmodule DBF.Opening do
           {:text, :memo},
           {:binary, :text_memo},
           {:binary, :binary_memo},
-          {:binary, :picture_memo}
+          {:binary, :picture_memo},
+          {:binary, :general_memo}
         ]
       end)
 
@@ -213,6 +214,15 @@ defmodule DBF.Opening do
          _offset
        ) do
     {:ok, if(block == 0, do: nil, else: {block, :picture})}
+  end
+
+  defp parse_memo_probe(
+         <<block::little-unsigned-integer-size(32)>>,
+         _record_number,
+         %{decoder: {:binary, :general_memo}},
+         _offset
+       ) do
+    {:ok, if(block == 0, do: nil, else: {block, :general})}
   end
 
   defp parse_memo_probe(raw_pointer, record_number, field, offset) do

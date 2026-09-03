@@ -649,9 +649,6 @@ variation, not only by the possibility of a future implementation.
 
 The following are roadmap items, not current architecture:
 
-- broader Visual FoxPro field capabilities;
-- General/OLE object blocks, including evidenced FPT type-2 semantics;
-- `Q` Varbinary and variable-width Blob values;
 - dBASE Level 5/7 and 48-byte Level 7 descriptors;
 - a generic source behavior for binary or IO-backed input;
 - writer/editor support;

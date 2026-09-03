@@ -13,7 +13,7 @@ defmodule DBF.Memo do
   @type family :: :dbt_iii | :dbt_iv | :fpt
   @type t :: %__MODULE__{family: family(), block_size: pos_integer()}
 
-  @type payload_type :: :text | :binary | :picture
+  @type payload_type :: :text | :binary | :picture | :general
   @type probe :: non_neg_integer() | {non_neg_integer(), payload_type()} | nil
 
   @spec initialize(Resource.t(), family(), probe()) ::

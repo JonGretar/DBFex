@@ -39,6 +39,7 @@ defmodule DBF.Field do
           | :text_memo
           | :binary_memo
           | :picture_memo
+          | :general_memo
           | :binary_character
           | :varbinary
   @type decoder ::

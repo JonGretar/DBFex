@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-03
+- Amended: 2026-09-03
 
 ## Context
 
@@ -11,9 +12,10 @@ fixture generated through VFPOLEDB disproves that rule: both binary Memo
 (`M NOCPTRANS`) and Blob (`W`) payloads are stored in type-`1` blocks, while
 their field descriptors require the payloads to remain binary.
 
-Picture (`P`) data is evidenced in type-`0` blocks. General/OLE (`G`) remains
-unsupported because no producer fixture yet establishes its expected type-`2`
-object representation.
+Picture (`P`) data is evidenced in type-`0` blocks. An MIT-licensed Visual
+FoxPro demo table from `arquimedescrivelari/foxpages` provides the missing
+General/OLE (`G`) evidence: all 18 populated General pointers across 11 records
+reference FPT type-`2` object blocks.
 
 ## Decision
 
@@ -24,7 +26,8 @@ the source of value semantics:
 2. textual Memo payloads pass through the table's text decoder;
 3. binary Memo and Blob payloads remain binaries;
 4. Picture pointers validate type `0` and remain binaries; and
-5. General/OLE stays outside the format profile until producer evidence exists.
+5. General/OLE pointers validate type `2` and return the complete object payload
+   as an opaque binary.
 
 Compile these choices into distinct field decoders during schema parsing.
 `DBF.Memo.FPT` validates the expected storage block type but does not decide
@@ -36,6 +39,7 @@ Binary content is no longer incorrectly required to use an FPT Picture block.
 The same FPT type-`1` storage can safely serve text or bytes without guessing
 from payload contents. Unexpected block types remain structural memo errors.
 
-Supporting General/OLE later requires a separate decoder and producer-backed
-type-`2` fixture; it must not be added by treating every non-text block as an
-opaque binary.
+General/OLE support deliberately stops at safe payload preservation. Parsing or
+extracting the proprietary embedded OLE representation is outside the DBF
+reader's scope. Treating an unexpected FPT type as interchangeable with an
+object block remains invalid.

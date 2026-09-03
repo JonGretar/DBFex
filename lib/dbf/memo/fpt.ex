@@ -9,6 +9,7 @@ defmodule DBF.Memo.FPT do
   @block_header_bytes 8
   @binary_block_type 0
   @text_block_type 1
+  @object_block_type 2
 
   @spec initialize(Resource.t(), Memo.probe()) ::
           {:ok, Memo.t()} | {:error, Error.t()}
@@ -62,7 +63,8 @@ defmodule DBF.Memo.FPT do
          _offset
        )
        when (payload_type in [:text, :binary] and block_type == @text_block_type) or
-              (payload_type == :picture and block_type == @binary_block_type) do
+              (payload_type == :picture and block_type == @binary_block_type) or
+              (payload_type == :general and block_type == @object_block_type) do
     {:ok, payload_length}
   end
 
@@ -129,6 +131,7 @@ defmodule DBF.Memo.FPT do
   defp block_type(:picture), do: @binary_block_type
   defp block_type(:binary), do: @text_block_type
   defp block_type(:text), do: @text_block_type
+  defp block_type(:general), do: @object_block_type
 
   defp validate_header(next_block, block_size, size)
        when block_size >= 1 and next_block >= 1 do

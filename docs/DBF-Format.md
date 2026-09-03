@@ -103,10 +103,10 @@ See [`ADR 0003`](https://github.com/JonGretar/DBFex/blob/main/docs/adr/0003-comp
   (`W`) payloads in type-`1` blocks. Use the DBF field descriptor to decide
   whether type-`1` bytes are decoded as text or preserved as binary; do not
   equate an FPT storage type with final value semantics.
-- `dbfread` additionally recognizes FPT type `2` as an Object block. The current
-  Picture regression proves type-`0` payload preservation; do not claim
-  General/OLE support until a producer fixture establishes its type-`2`
-  behavior.
+- The MIT-licensed `foxpages` Visual FoxPro demo fixture confirms FPT type `2`
+  for every populated General/OLE (`G`) value. Preserve the complete object
+  payload as an opaque binary; interpreting or extracting the proprietary OLE
+  representation is outside the table reader's scope.
 - A memo may span several blocks. Bounds-check `block * block_size`, headers,
   and declared payload lengths before allocating or reading.
 - Memo, General, Picture, Blob, and binary-flagged Character/Memo values are not
@@ -153,10 +153,11 @@ DBF/FPT pair; `dbase-rs` has no FPT test fixture; `python-dbf` has no checked-in
 binary fixture and has a reported VFP9 FPT-writing compatibility issue; Shapelib
 targets the non-memo shapefile DBF subset.
 
-The repository's manually triggered `generate-vfp9-fixture.yml` workflow uses
-the archived Microsoft VFPOLEDB 9 SP2 provider as a producer probe for `V`, `Q`,
-binary `C`/`M`, `W`, and `B`. Treat its artifact as unreviewed evidence until
-the acceptance checklist in `tools/fixtures/vfp9/README.md` is complete.
+The repository's manually triggered `generate-vfp9-fixture.yml` workflow
+produced the accepted fixture for `V`, `Q`, binary `C`/`M`, `W`, and `B`.
+General/OLE evidence comes from the unchanged MIT-licensed `foxpages`
+`grafics.dbf`/`.fpt` pair at commit
+`834ac3b0c2c955336394e1c0f44f4c5ac7d21bb7`.
 
 When a source and fixture disagree, preserve the raw bytes, identify the producing
 application if possible, and capture the decision in a regression test or ADR.

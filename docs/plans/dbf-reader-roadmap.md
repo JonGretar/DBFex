@@ -377,10 +377,9 @@ contains DBF/FPT fixtures for both.
       used by the accepted Visual FoxPro fixtures.
 - [x] Support text memos with decimal FoxPro or binary Visual FoxPro pointers.
 - [x] Preserve evidenced FPT type-0 Picture data as binaries.
-- [ ] Preserve General/OLE object data only after a producer fixture confirms
-      whether and how field type `G` uses FPT object block type `2`. The current
-      synthetic `G` test covers only a type-0 payload and is not sufficient
-      evidence for complete General support.
+- [x] Preserve General/OLE object data as opaque binaries. The MIT-licensed
+      `foxpages` producer fixture confirms that populated field type `G` pointers
+      use FPT object block type `2`.
 - [x] Parse VFP table flags, code page, field flags, and the optional backlink
       area without treating them as dBASE IV metadata.
 
@@ -399,12 +398,12 @@ Next target `0x31` and `0x32`, for which fixtures also already exist.
 
 #### Visual FoxPro completion evidence
 
-The checked-in VFPOLEDB-generated fixture now supplies producer-backed evidence
-for VFP9 Varbinary (`Q`), Blob (`W`), binary-flagged Character/Memo, and Double
-(`B`). No referenced example project currently supplies a producer-backed
-General/OLE object. `dbfread` includes only a `0x30` textual Memo fixture; its
-implementation recognizes FPT block type `0` as Picture, `1` as Text, and `2` as
-Object, but that code is secondary evidence rather than a fixture oracle.
+The checked-in VFPOLEDB-generated fixture supplies producer-backed evidence for
+VFP9 Varbinary (`Q`), Blob (`W`), binary-flagged Character/Memo, and Double
+(`B`). The checked-in `foxpages` fixture supplies populated General/OLE objects;
+all of its populated `G` pointers reference FPT block type `2`. `dbfread`
+recognizes the same object type in code, but remains secondary evidence rather
+than the fixture oracle.
 
 Before claiming complete Visual FoxPro support:
 
@@ -416,8 +415,8 @@ Before claiming complete Visual FoxPro support:
 - [x] Cover `Q`, `W`, binary `C`, binary `M`, and Double (`B`), including empty,
       null, short, full-width, trailing-byte, and multi-block values where
       applicable.
-- [x] Cover Picture (`P`) type-`0` payloads. General (`G`) type-`2` objects remain
-      blocked on a producer capable of creating a meaningful OLE value.
+- [x] Cover Picture (`P`) type-`0` payloads and General (`G`) type-`2` objects,
+      preserving both as opaque binaries.
 - [x] Retain the generator, exact inserted values, producer/version, provenance,
       redistribution permission, and file hashes with the fixture.
 - [x] Resolve the primary documentation's `0x42` signature versus the existing

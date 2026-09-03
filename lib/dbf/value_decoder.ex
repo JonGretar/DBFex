@@ -46,6 +46,7 @@ defmodule DBF.ValueDecoder do
   defp compile_kind(:datetime, _options), do: {:binary, :datetime}
   defp compile_kind(:binary_memo_pointer, _options), do: {:binary, :binary_memo}
   defp compile_kind(:picture_memo_pointer, _options), do: {:binary, :picture_memo}
+  defp compile_kind(:general_memo_pointer, _options), do: {:binary, :general_memo}
 
   defp compile_kind(:numeric, options) do
     {:text, {:numeric, Keyword.get(options, :numeric, :float)}}
@@ -175,6 +176,14 @@ defmodule DBF.ValueDecoder do
   end
 
   def decode(
+        db,
+        %{decoder: {:binary, :general_memo}},
+        <<block::little-unsigned-integer-size(32)>>
+      ) do
+    if block == 0, do: nil, else: read_general_memo(db, block)
+  end
+
+  def decode(
         _db,
         %{decoder: {:binary, :integer}},
         <<integer::little-signed-integer-size(32)>>
@@ -258,6 +267,10 @@ defmodule DBF.ValueDecoder do
 
   defp read_picture_memo(db, block) do
     Memo.get_block(db.resource, db.memo_file, block, :picture)
+  end
+
+  defp read_general_memo(db, block) do
+    Memo.get_block(db.resource, db.memo_file, block, :general)
   end
 
   defp invalid_value(message) do

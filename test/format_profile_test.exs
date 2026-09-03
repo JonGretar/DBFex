@@ -43,8 +43,8 @@ defmodule DBF.FormatProfileTest do
     assert visual_foxpro.field_kinds["T"] == :datetime
     assert visual_foxpro.field_kinds["M"] == :text_memo_binary_pointer
     assert visual_foxpro.field_kinds["B"] == :double
+    assert visual_foxpro.field_kinds["G"] == :general_memo_pointer
     assert visual_foxpro.field_kinds["P"] == :picture_memo_pointer
-    refute Map.has_key?(visual_foxpro.field_kinds, "G")
     refute Map.has_key?(visual_foxpro.field_kinds, "Y")
 
     assert {:ok, visual_foxpro_autoincrement} = FormatProfile.select(0x31)

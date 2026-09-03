@@ -62,6 +62,33 @@ defmodule DBF.VisualFoxProTest do
     end)
   end
 
+  test "preserves producer-written General/OLE object blocks as opaque binaries" do
+    DBF.with_open("test/dbf_files/vfp_general.dbf", fn db ->
+      assert db.version == 0x30
+      assert length(db.fields) == 11
+      assert [first_record | _] = records = Enum.to_list(db)
+      assert length(records) == 11
+
+      assert {:record,
+              %{
+                "SERVICO" => "aear17",
+                "GRAF01" => first,
+                "GRAF02" => second,
+                "GRAF03" => nil
+              }} = first_record
+
+      assert byte_size(first) == 51_173
+
+      assert :crypto.hash(:sha256, first) ==
+               Base.decode16!("C3195A1770EE79397B23687024DC96E93695002C94E6E140CFC3DBEB8673B4BD")
+
+      assert byte_size(second) == 40_303
+
+      assert :crypto.hash(:sha256, second) ==
+               Base.decode16!("22A75435DBA09A0FDC045917E37E6882A4DCFC4FD53A4832A3E292106D15F169")
+    end)
+  end
+
   test "rejects a text FPT block referenced by a binary memo field" do
     error =
       assert_raise DBF.DatabaseError, fn ->
@@ -72,6 +99,18 @@ defmodule DBF.VisualFoxProTest do
     assert error.cause == :unsupported_memo_block_type
     assert error.context.block_type == 1
     assert error.context.expected_block_type == 0
+  end
+
+  test "rejects a Picture block referenced by a General field" do
+    error =
+      assert_raise DBF.DatabaseError, fn ->
+        with_visual_foxpro_memo("G", "not an OLE object", fn _db -> :ok end, block_type: 0)
+      end
+
+    assert error.reason == :invalid_memo
+    assert error.cause == :unsupported_memo_block_type
+    assert error.context.block_type == 0
+    assert error.context.expected_block_type == 2
   end
 
   test "decodes Visual FoxPro autoincrement tables and exact currency values" do
